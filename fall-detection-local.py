@@ -9,10 +9,11 @@ import random
 import joblib
 import os
 
-# Load the trained Random Forest model
+# Load the trained machine learning model for fall detection
 model = joblib.load('/home/albxii/ecs/ecs_rf_model.pkl')
 
 def connect_to_databases(sqlite_db, mysql_host, mysql_user, mysql_password, mysql_db):
+    """ Establish connections to both SQLite and MySQL databases """
     try:
         sqlite_conn = sqlite3.connect(sqlite_db)
         print("Connected to SQLite DB successfully.")
@@ -26,34 +27,43 @@ def connect_to_databases(sqlite_db, mysql_host, mysql_user, mysql_password, mysq
     return None, None
 
 def insert_sensor_data(conn, profile_id, timestamp, sensor_type, value):
-    sql = ''' INSERT INTO sensordata(ProfileID, Timestamp, SensorType, Value)
-              VALUES(?,?,?,?) '''
-    cur = conn.cursor()
-    cur.execute(sql, (profile_id, timestamp, sensor_type, value))
-    conn.commit()
+    """ Insert sensor data into the database """
+    try:
+        sql = ''' INSERT INTO sensordata(ProfileID, Timestamp, SensorType, Value)
+                  VALUES(?,?,?,?) '''
+        cur = conn.cursor()
+        cur.execute(sql, (profile_id, timestamp, sensor_type, value))
+        conn.commit()
+    except Error as e:
+        print(f"Failed to insert sensor data: {e}")
 
 def insert_alert_log(conn, profile_id, alert_type, timestamp, resolved=0):
-    if isinstance(conn, sqlite3.Connection):
-        # SQLite requires ? placeholders
-        sql = ''' INSERT INTO alertlogs(ProfileID, AlertType, AlertTimestamp, Resolved)
-                  VALUES(?,?,?,?) '''
-    else:
-        # MySQL requires %s placeholders
-        sql = ''' INSERT INTO alertlogs(ProfileID, AlertType, AlertTimestamp, Resolved)
-                  VALUES(%s, %s, %s, %s) '''
-    cur = conn.cursor()
-    cur.execute(sql, (profile_id, alert_type, timestamp, resolved))
-    conn.commit()
+    """ Insert an alert log into the database """
+    try:
+        if isinstance(conn, sqlite3.Connection):
+            sql = ''' INSERT INTO alertlogs(ProfileID, AlertType, AlertTimestamp, Resolved)
+                      VALUES(?,?,?,?) '''
+        else:
+            sql = ''' INSERT INTO alertlogs(ProfileID, AlertType, AlertTimestamp, Resolved)
+                      VALUES(%s, %s, %s, %s) '''
+        cur = conn.cursor()
+        cur.execute(sql, (profile_id, alert_type, timestamp, resolved))
+        conn.commit()
+    except Error as e:
+        print(f"Failed to insert alert log: {e}")
 
 def send_alert_to_device(message):
+    """ Placeholder for sending alert to a wearable device """
     print(f"Sending alert to device: {message}")
 
 def simulate_sensor_data():
+    """ Generate simulated sensor data for heart rate, acceleration, and gyroscope """
     return (random.randint(60, 100),
             (random.uniform(-2, 2), random.uniform(-2, 2), random.uniform(-2, 2)),
             (random.uniform(-200, 200), random.uniform(-200, 200), random.uniform(-200, 200)))
 
 def detect_fall(acceleration, gyroscope, acc_threshold=1.0, gyro_threshold=150, duration_threshold=3):
+    """ Determine whether a fall has occurred based on sensor data """
     global stable_count, unstable_count
     if max(abs(np.array(acceleration))) > acc_threshold or max(abs(np.array(gyroscope))) > gyro_threshold:
         unstable_count += 1
@@ -71,6 +81,7 @@ def detect_fall(acceleration, gyroscope, acc_threshold=1.0, gyro_threshold=150, 
     return False
 
 def main():
+    """ Main function to run the fall detection system """
     global stable_count, unstable_count
     stable_count, unstable_count = 0, 0
     sqlite_conn, mysql_conn = connect_to_databases('/home/albxii/ecs/elderlycaresystemlocaldb.db',
