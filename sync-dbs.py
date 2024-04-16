@@ -25,6 +25,14 @@ def connect_to_mysql(host_name, user_name, user_password, db_name):
         print(f"MySQL Error: {e}")
     return None
 
+def check_profile_exists(mysql_conn, profile_id):
+    cursor = mysql_conn.cursor()
+    cursor.execute("SELECT COUNT(1) FROM patientprofiles WHERE ProfileID = %s", (profile_id,))
+    if cursor.fetchone()[0] == 0:
+        print(f"No ProfileID {profile_id} found in MySQL, skipping data transfer for this ID.")
+        return False
+    return True
+
 def transfer_data(sqlite_conn, mysql_conn):
     sqlite_cursor = sqlite_conn.cursor()
     sqlite_cursor.execute("SELECT ProfileID, Timestamp, SensorType, Value FROM sensordata")
@@ -32,13 +40,19 @@ def transfer_data(sqlite_conn, mysql_conn):
 
     mysql_cursor = mysql_conn.cursor()
     for row in rows:
+        if not check_profile_exists(mysql_conn, row[0]):
+            continue  # Skip this row if the ProfileID does not exist
         try:
-            mysql_cursor.execute("""
-                INSERT INTO sensordatahistory (ProfileID, Timestamp, SensorType, Value)
-                VALUES (%s, %s, %s, %s)
-                """, row)
-            mysql_conn.commit()
-            print(f"Data transferred for ProfileID: {row[0]}")
+            mysql_cursor.execute("SELECT COUNT(1) FROM sensordatahistory WHERE ProfileID = %s AND Timestamp = %s AND SensorType = %s", (row[0], row[1], row[2]))
+            if mysql_cursor.fetchone()[0] == 0:  # No duplicate entry exists
+                mysql_cursor.execute("""
+                    INSERT INTO sensordatahistory (ProfileID, Timestamp, SensorType, Value)
+                    VALUES (%s, %s, %s, %s)
+                    """, row)
+                mysql_conn.commit()
+                print(f"Data transferred for ProfileID: {row[0]} at Timestamp: {row[1]}")
+            else:
+                print(f"Duplicate data for ProfileID: {row[0]} at Timestamp: {row[1]} not inserted.")
         except mysql.connector.Error as e:
             print(f"Failed to insert data for ProfileID {row[0]}: {e}")
 
