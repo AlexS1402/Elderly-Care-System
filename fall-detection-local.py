@@ -1,4 +1,7 @@
 import sqlite3
+import mysql.connector
+from mysql.connector import Error
+import datetime
 import numpy as np
 import pandas as pd
 import time
@@ -9,14 +12,18 @@ import os
 # Load the trained Random Forest model
 model = joblib.load('/home/albxii/ecs/ecs_rf_model.pkl')
 
-# Database functions
-def connect_to_db(db_file):
+def connect_to_databases(sqlite_db, mysql_host, mysql_user, mysql_password, mysql_db):
     try:
-        conn = sqlite3.connect(db_file)
-        return conn
-    except sqlite3.Error as e:
-        print(f"Error connecting to database: {e}")
-    return None
+        sqlite_conn = sqlite3.connect(sqlite_db)
+        print("Connected to SQLite DB successfully.")
+        mysql_conn = mysql.connector.connect(
+            host=mysql_host, user=mysql_user, passwd=mysql_password, database=mysql_db
+        )
+        print("Connected to MySQL DB successfully.")
+        return sqlite_conn, mysql_conn
+    except Exception as e:
+        print(f"Database connection error: {e}")
+    return None, None
 
 def insert_sensor_data(conn, profile_id, timestamp, sensor_type, value):
     sql = ''' INSERT INTO sensordata(ProfileID, Timestamp, SensorType, Value)
@@ -25,10 +32,26 @@ def insert_sensor_data(conn, profile_id, timestamp, sensor_type, value):
     cur.execute(sql, (profile_id, timestamp, sensor_type, value))
     conn.commit()
 
+def insert_alert_log(conn, profile_id, alert_type, timestamp, resolved=0):
+    if isinstance(conn, sqlite3.Connection):
+        # SQLite requires ? placeholders
+        sql = ''' INSERT INTO alertlogs(ProfileID, AlertType, AlertTimestamp, Resolved)
+                  VALUES(?,?,?,?) '''
+    else:
+        # MySQL requires %s placeholders
+        sql = ''' INSERT INTO alertlogs(ProfileID, AlertType, AlertTimestamp, Resolved)
+                  VALUES(%s, %s, %s, %s) '''
+    cur = conn.cursor()
+    cur.execute(sql, (profile_id, alert_type, timestamp, resolved))
+    conn.commit()
+
+def send_alert_to_device(message):
+    print(f"Sending alert to device: {message}")
+
 def simulate_sensor_data():
-    return (random.randint(60, 100), 
-            (random.uniform(-0.5, 0.5), random.uniform(-0.5, 0.5), random.uniform(-0.5, 0.5)), 
-            (random.uniform(-50, 50), random.uniform(-50, 50), random.uniform(-50, 50)))
+    return (random.randint(60, 100),
+            (random.uniform(-2, 2), random.uniform(-2, 2), random.uniform(-2, 2)),
+            (random.uniform(-200, 200), random.uniform(-200, 200), random.uniform(-200, 200)))
 
 def detect_fall(acceleration, gyroscope, acc_threshold=1.0, gyro_threshold=150, duration_threshold=3):
     global stable_count, unstable_count
@@ -48,40 +71,40 @@ def detect_fall(acceleration, gyroscope, acc_threshold=1.0, gyro_threshold=150, 
     return False
 
 def main():
-    database = '/home/albxii/ecs/elderlycaresystemlocaldb.db'  # Ensure this is the correct path to your database
-    conn = connect_to_db(database)
-    profile_id = 1  # Assuming you know this beforehand
     global stable_count, unstable_count
-    stable_count = 0
-    unstable_count = 0
+    stable_count, unstable_count = 0, 0
+    sqlite_conn, mysql_conn = connect_to_databases('/home/albxii/ecs/elderlycaresystemlocaldb.db',
+                                                   'elderlycaresystemclouddb.mysql.database.azure.com', 'root_admin', '1A2a4=33NTG.', 'elderlycareclouddb')
+    profile_id = 1
     try:
         while True:
             if os.path.exists('stop.txt'):
                 print("Stop file detected. Exiting program...")
-                if os.path.exists('stop.txt'):
-                    os.remove('stop.txt')
+                os.remove('stop.txt')
                 break
             heart_rate, acceleration, gyroscope = simulate_sensor_data()
             timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
-            # Log each sensor data
-            insert_sensor_data(conn, profile_id, timestamp, 'Heart Rate', heart_rate)
-            insert_sensor_data(conn, profile_id, timestamp, 'Accelerometer', np.mean(acceleration))
-            insert_sensor_data(conn, profile_id, timestamp, 'Gyroscope', np.mean(gyroscope))
+            insert_sensor_data(sqlite_conn, profile_id, timestamp, 'Heart Rate', heart_rate)
+            insert_sensor_data(sqlite_conn, profile_id, timestamp, 'Accelerometer', np.mean(acceleration))
+            insert_sensor_data(sqlite_conn, profile_id, timestamp, 'Gyroscope', np.mean(gyroscope))
             
             if detect_fall(acceleration, gyroscope):
-                feature_names = ['xAcc', 'yAcc', 'zAcc', 'xGyro', 'yGyro', 'zGyro']
-                features = pd.DataFrame([list(acceleration) + list(gyroscope)], columns=feature_names)
-                prediction = model.predict(features)
-                if prediction[0] == 'Fall Detected':
-                    print(f"Fall detected with heart rate: {heart_rate}, acceleration: {acceleration}, gyroscope: {gyroscope}")
-                    # Here, you might send data to the cloud or alert caregivers
-                else:
-                    print(f"Fall Not Detected with heart rate: {heart_rate}, Acceleration: {acceleration}, Gyroscope: {gyroscope}")
+                alert_message = f"Fall detected with heart rate: {heart_rate}, acceleration: {acceleration}, gyroscope: {gyroscope}"
+                print(alert_message)
+                insert_alert_log(sqlite_conn, profile_id, 'Fall Detected', timestamp)
+                insert_alert_log(mysql_conn, profile_id, 'Fall Detected', timestamp)
+                send_alert_to_device(alert_message)
             else:
-                print(f"Fall Not Detected with heart rate: {heart_rate}, Acceleration: {acceleration}, Gyroscope: {gyroscope}")
+                print(f"No fall detected at {timestamp}")
             time.sleep(1)
     except KeyboardInterrupt:
         print("Program terminated by user.")
+    finally:
+        if sqlite_conn:
+            sqlite_conn.close()
+        if mysql_conn:
+            mysql_conn.close()
+        print("Database connections closed.")
 
 if __name__ == "__main__":
     main()
