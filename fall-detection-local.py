@@ -3,6 +3,7 @@ import mysql.connector
 from mysql.connector import Error
 import datetime
 import numpy as np
+import pandas as pd
 import time
 import random
 import joblib
@@ -27,6 +28,7 @@ DB_CONFIGS = {
         'database': 'elderlycareclouddb'
     }
 }
+
 THRESHOLDS = {'acc': 1.0, 'gyro': 150}
 
 # Load the machine learning model
@@ -80,6 +82,9 @@ def insert_alert_log(conn, profile_id, alert_type, timestamp, resolved=0):
     cursor.close()
 
 def fetch_and_send_medication_reminders(mysql_conn, profile_id):
+    now = datetime.datetime.now()
+    current_time = now.strftime('%H:%M:%S')
+
     query = """
         SELECT m.MedicationName, s.ScheduledTime FROM medicationschedules s
         JOIN patientmedications m ON s.PatientMedicationID = m.PatientMedicationID
@@ -90,10 +95,13 @@ def fetch_and_send_medication_reminders(mysql_conn, profile_id):
     cursor.close()
     if results:
         for (medication_name, scheduled_time) in results:
-            send_medication_reminder(profile_id, medication_name, scheduled_time)
+            # Convert timedelta to time and compare with current time
+            if (datetime.datetime.min + scheduled_time).time().strftime('%H:%M:%S') == current_time:
+                send_medication_reminder(profile_id, medication_name, scheduled_time)
+
 
 def send_medication_reminder(profile_id, medication_name, scheduled_time):
-    """Simulated function to send medication reminders to wearable device."""
+    """Simulated function to send medication reminder to wearable device."""
     logging.info(f"Reminder sent for {medication_name} at {scheduled_time} to profile {profile_id}")
 
 def simulate_sensor_data():
@@ -103,20 +111,21 @@ def simulate_sensor_data():
     gyroscope = np.random.uniform(-200, 200, 3)
     return heart_rate, accelerometer, gyroscope
 
-def detect_fall(acceleration, gyroscope):
-    """Determines whether a fall has occurred based on sensor data and machine learning prediction."""
-    # First, check basic thresholds
-    if np.max(np.abs(acceleration)) > THRESHOLDS['acc'] or np.max(np.abs(gyroscope)) > THRESHOLDS['gyro']:
-        try:
-            # If thresholds are exceeded, use the ML model for further confirmation
-            features = np.array([np.max(np.abs(acceleration)), np.max(np.abs(gyroscope))])
-            prediction = model.predict([features])
-            return prediction[0] == 1  # '1' represents a fall detected
-        except Exception as e:
-            logging.error(f"Error during model prediction: {e}")
-            return False
-    return False
+def detect_fall(accelerometer, gyroscope):
+    """Determines whether a fall has occurred based on sensor data and a machine learning model."""
+    # Initial threshold check to see if further analysis is required
+    if np.max(np.abs(accelerometer)) > THRESHOLDS['acc'] or np.max(np.abs(gyroscope)) > THRESHOLDS['gyro']:
+        # Prepare the data as a DataFrame with the same structure used in model training
+        features = pd.DataFrame([[
+            accelerometer[0], accelerometer[1], accelerometer[2], 
+            gyroscope[0], gyroscope[1], gyroscope[2]
+        ]], columns=['xAcc', 'yAcc', 'zAcc', 'xGyro', 'yGyro', 'zGyro'])
 
+        # Predict using the trained model
+        prediction = model.predict(features)
+        if prediction[0] == 'Fall Detected':
+            return True
+    return False
 
 def main():
     profile_id = 1
