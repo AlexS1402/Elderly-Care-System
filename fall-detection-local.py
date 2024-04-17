@@ -93,7 +93,7 @@ def fetch_and_send_medication_reminders(mysql_conn, profile_id):
             send_medication_reminder(profile_id, medication_name, scheduled_time)
 
 def send_medication_reminder(profile_id, medication_name, scheduled_time):
-    """Simulated function to send medication reminders."""
+    """Simulated function to send medication reminders to wearable device."""
     logging.info(f"Reminder sent for {medication_name} at {scheduled_time} to profile {profile_id}")
 
 def simulate_sensor_data():
@@ -104,8 +104,19 @@ def simulate_sensor_data():
     return heart_rate, accelerometer, gyroscope
 
 def detect_fall(acceleration, gyroscope):
-    """Determines whether a fall has occurred based on sensor data."""
-    return np.max(np.abs(acceleration)) > THRESHOLDS['acc'] or np.max(np.abs(gyroscope)) > THRESHOLDS['gyro']
+    """Determines whether a fall has occurred based on sensor data and machine learning prediction."""
+    # First, check basic thresholds
+    if np.max(np.abs(acceleration)) > THRESHOLDS['acc'] or np.max(np.abs(gyroscope)) > THRESHOLDS['gyro']:
+        try:
+            # If thresholds are exceeded, use the ML model for further confirmation
+            features = np.array([np.max(np.abs(acceleration)), np.max(np.abs(gyroscope))])
+            prediction = model.predict([features])
+            return prediction[0] == 1  # '1' represents a fall detected
+        except Exception as e:
+            logging.error(f"Error during model prediction: {e}")
+            return False
+    return False
+
 
 def main():
     profile_id = 1
