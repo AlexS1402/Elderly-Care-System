@@ -36,11 +36,12 @@ model = joblib.load(MODEL_PATH)
 
 def connect_to_database(config):
     """Establishes database connection based on the type specified in the config."""
+    conn = None
     try:
         if config['type'] == 'sqlite':
-            return sqlite3.connect(config['path'])
+            conn = sqlite3.connect(config['path'])
         elif config['type'] == 'mysql':
-            return mysql.connector.connect(
+            conn = mysql.connector.connect(
                 host=config['host'],
                 user=config['user'],
                 passwd=config['passwd'],
@@ -48,17 +49,21 @@ def connect_to_database(config):
             )
     except Error as e:
         logging.error(f"Database connection error: {e}")
+        if conn:
+            conn.close()
         return None
+    return conn
 
 def execute_db_query(cursor, query, data=None, fetch=False):
     """Executes a database query safely."""
     try:
         cursor.execute(query, data or ())
-        if fetch:
-            return cursor.fetchall()
+        return cursor.fetchall() if fetch else None
     except Error as e:
         logging.error(f"Database query error: {e}")
         return None
+    finally:
+        cursor.close()  # Ensure the cursor is closed after operation
 
 def insert_sensor_data(conn, profile_id, timestamp, sensor_type, value):
     """Inserts sensor data into the database."""
@@ -66,10 +71,12 @@ def insert_sensor_data(conn, profile_id, timestamp, sensor_type, value):
     table_name = 'sensordata' if isinstance(conn, sqlite3.Connection) else 'sensordatahistory'
     sql = f'''INSERT INTO {table_name}(ProfileID, Timestamp, SensorType, Value)
               VALUES({placeholder}, {placeholder}, {placeholder}, {placeholder})'''
-    cursor = conn.cursor()
-    execute_db_query(cursor, sql, (profile_id, timestamp, sensor_type, value))
-    conn.commit()
-    cursor.close()
+    try:
+        cursor = conn.cursor()  # Manually creating a cursor
+        cursor.execute(sql, (profile_id, timestamp, sensor_type, value))
+        conn.commit()
+    finally:
+        cursor.close()  # Ensuring the cursor is closed after operations
 
 def insert_alert_log(conn, profile_id, alert_type, timestamp, resolved=0):
     """Inserts an alert log into the database."""
@@ -79,9 +86,10 @@ def insert_alert_log(conn, profile_id, alert_type, timestamp, resolved=0):
     cursor = conn.cursor()
     execute_db_query(cursor, sql, (profile_id, alert_type, timestamp, resolved))
     conn.commit()
-    cursor.close()
+
 
 def fetch_and_send_medication_reminders(mysql_conn, profile_id):
+    logging.info("Starting to fetch medication reminders.")
     now = datetime.datetime.now()
     current_time = now.strftime('%H:%M:%S')
 
@@ -98,7 +106,7 @@ def fetch_and_send_medication_reminders(mysql_conn, profile_id):
             # Convert timedelta to time and compare with current time
             if (datetime.datetime.min + scheduled_time).time().strftime('%H:%M:%S') == current_time:
                 send_medication_reminder(profile_id, medication_name, scheduled_time)
-
+    logging.info("Completed fetching medication reminders.")
 
 def send_medication_reminder(profile_id, medication_name, scheduled_time):
     """Simulated function to send medication reminder to wearable device."""
