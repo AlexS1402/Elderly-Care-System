@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "821300283651",
+    "project_id": "caregiver-dashboard",
+    "storage_bucket": "caregiver-dashboard.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:821300283651:android:d4adce7fe47a1288428136",
+        "android_client_info": {
+          "package_name": "com.example.caregiver_dashboard"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAtt8n2Xz8qObrjaSmJnlVnNJGH4EBaq7s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
