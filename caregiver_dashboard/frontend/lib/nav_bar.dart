@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'home_screen.dart';
 import 'patient_list_screen.dart';
-import 'patient_detail_screen.dart';
 import 'login_screen.dart';
 
 class NavBar extends StatefulWidget {
@@ -65,6 +64,7 @@ class _NavBarState extends State<NavBar> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      SizedBox(height: 80), // Add space to avoid being hidden by the header
                       Expanded(
                         child: ListView(
                           children: [
@@ -100,24 +100,6 @@ class _NavBarState extends State<NavBar> {
                                   Navigator.pushReplacement(
                                     context,
                                     MaterialPageRoute(builder: (context) => PatientListScreen()),
-                                  );
-                                },
-                              ),
-                            ),
-                            MouseRegion(
-                              onEnter: (_) => _onHover(2, true),
-                              onExit: (_) => _onHover(2, false),
-                              child: ListTile(
-                                title: Text(
-                                  'Patient Details',
-                                  style: TextStyle(
-                                    color: _hovering[2] == true ? Colors.blue : Colors.black,
-                                  ),
-                                ),
-                                onTap: () {
-                                  Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(builder: (context) => PatientDetailScreen()),
                                   );
                                 },
                               ),
@@ -180,13 +162,6 @@ class _NavBarState extends State<NavBar> {
                       Spacer(),
                       Text('Elderly Care System'),
                       Spacer(),
-                      if (Navigator.canPop(context))
-                        IconButton(
-                          icon: Icon(Icons.arrow_back),
-                          onPressed: () {
-                            Navigator.pop(context);
-                          },
-                        ),
                     ],
                   ),
                 ),

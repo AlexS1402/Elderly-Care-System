@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/patient.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class PatientService {
   static final String baseUrl = dotenv.env['BASE_URL'] ?? 'http://localhost:3000/api';
@@ -12,17 +12,15 @@ class PatientService {
     return await storage.read(key: 'jwt');
   }
 
-  static Future<List<Patient>> getPatientsForCaregiver(int userId) async {
+  static Future<Map<String, dynamic>> getPatientsForCaregiver(int userId, String searchQuery, int page, int pageSize) async {
     String? token = await _getToken();
     final response = await http.get(
-      Uri.parse('$baseUrl/patients/$userId'),
+      Uri.parse('$baseUrl/patients/$userId?search=$searchQuery&page=$page&pageSize=$pageSize'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
     if (response.statusCode == 200) {
-      List<dynamic> body = jsonDecode(response.body);
-      List<Patient> patients = body.map((dynamic item) => Patient.fromJson(item)).toList();
-      return patients;
+      return jsonDecode(response.body);
     } else {
       throw Exception('Failed to load patients');
     }
