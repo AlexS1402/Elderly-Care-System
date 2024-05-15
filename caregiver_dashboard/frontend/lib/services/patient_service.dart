@@ -22,7 +22,14 @@ class PatientService {
     );
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      final jsonResponse = jsonDecode(response.body) as Map<String, dynamic>;
+      final patients = (jsonResponse['patients'] as List)
+          .map((patientJson) => Patient.fromJson(patientJson))
+          .toList();
+      return {
+        'patients': patients,
+        'totalPages': jsonResponse['totalPages'],
+      };
     } else {
       throw Exception('Failed to load patients');
     }

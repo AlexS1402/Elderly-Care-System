@@ -20,12 +20,35 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
       ),
       initialRoute: '/',
-      routes: {
-        '/': (context) => CheckAuth(),
-        '/login': (context) => LoginScreen(),
-        '/home': (context) => HomeScreen(),
-        '/patient-list': (context) => PatientListScreen(),
-        '/patient-detail': (context) => PatientDetailScreen(),
+      onGenerateRoute: (settings) {
+        // Handle route generation
+        WidgetBuilder builder;
+        switch (settings.name) {
+          case '/':
+            builder = (BuildContext context) => CheckAuth();
+            break;
+          case '/login':
+            builder = (BuildContext context) => LoginScreen();
+            break;
+          case '/home':
+            builder = (BuildContext context) => HomeScreen();
+            break;
+          case '/patient-list':
+            builder = (BuildContext context) => PatientListScreen();
+            break;
+          case '/patient-detail':
+            // Redirect to home if refreshed on patient-detail
+            if (settings.arguments == null) {
+              builder = (BuildContext context) => HomeScreen();
+            } else {
+              builder = (BuildContext context) => PatientDetailScreen();
+            }
+            break;
+          default:
+            builder = (BuildContext context) => HomeScreen();
+            break;
+        }
+        return MaterialPageRoute(builder: builder, settings: settings);
       },
     );
   }

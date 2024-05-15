@@ -19,6 +19,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
   Future<Patient>? patientFuture;
   String currentSection = 'Profile';
   final storage = FlutterSecureStorage();
+  DateTime selectedDate = DateTime.now();
 
   @override
   void didChangeDependencies() {
@@ -106,10 +107,10 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     );
   }
 
-  Future<List<Map<String, dynamic>>> fetchHeartRateData(int profileId) async {
+  Future<List<Map<String, dynamic>>> fetchHeartRateData(int profileId, DateTime date) async {
     String? token = await storage.read(key: 'jwt');
     final response = await http.get(
-      Uri.parse('http://localhost:3000/api/sensorData/$profileId/heartRate'),
+      Uri.parse('http://localhost:3000/api/sensorData/$profileId/heartRate?date=${DateFormat('yyyy-MM-dd').format(date)}'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
@@ -121,46 +122,96 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
   }
 
   Widget _buildHeartRateChart(List<Map<String, dynamic>> data) {
-    return LineChart(
-      LineChartData(
-        titlesData: FlTitlesData(
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(showTitles: true),
+    // Filter out invalid data points and round the values
+    List<FlSpot> validSpots = data.map((point) {
+      final DateTime date = DateTime.parse(point['timeInterval']);
+      final double avgHeartRate = double.parse((point['avgHeartRate'] as num).toStringAsFixed(2));
+      return FlSpot(date.hour.toDouble(), avgHeartRate);
+    }).where((spot) => spot.x.isFinite && spot.y.isFinite).toList();
+
+    if (validSpots.isEmpty) {
+      return Center(child: Text('No valid heart rate data available.'));
+    }
+
+    return SizedBox(
+      height: 300, // Ensure the chart has a fixed height
+      child: LineChart(
+        LineChartData(
+          titlesData: FlTitlesData(
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(showTitles: true, getTitlesWidget: (value, meta) {
+                if (value.isFinite) {
+                  return Text(value.toString());
+                } else {
+                  return Text('');
+                }
+              }),
+            ),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(showTitles: true, getTitlesWidget: (value, meta) {
+                if (value.isFinite) {
+                  return Text('${value.toInt()}:00');
+                } else {
+                  return Text('');
+                }
+              }),
+            ),
           ),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(showTitles: true, getTitlesWidget: (value, meta) {
-              final DateTime date = DateTime.fromMillisecondsSinceEpoch(value.toInt());
-              return Text(DateFormat('HH:mm').format(date));
-            }),
-          ),
+          borderData: FlBorderData(show: true),
+          lineBarsData: [
+            LineChartBarData(
+              spots: validSpots,
+              isCurved: true,
+              color: Colors.red,
+              barWidth: 2,
+              belowBarData: BarAreaData(show: false),
+            ),
+          ],
         ),
-        borderData: FlBorderData(show: true),
-        lineBarsData: [
-          LineChartBarData(
-            spots: data.map((point) {
-              final DateTime date = DateTime.parse(point['timeInterval']);
-              return FlSpot(date.millisecondsSinceEpoch.toDouble(), point['avgHeartRate']);
-            }).toList(),
-          ),
-        ],
       ),
     );
   }
 
   Widget _buildSensorDataSection(int profileId) {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: fetchHeartRateData(profileId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
-          return Center(child: Text('Error loading heart rate data'));
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return Center(child: Text('No heart rate data found'));
-        }
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  selectedDate = selectedDate.subtract(Duration(days: 1));
+                });
+              },
+              child: Text('Previous Day'),
+            ),
+            Text(DateFormat('yyyy-MM-dd').format(selectedDate)),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  selectedDate = selectedDate.add(Duration(days: 1));
+                });
+              },
+              child: Text('Next Day'),
+            ),
+          ],
+        ),
+        FutureBuilder<List<Map<String, dynamic>>>(
+          future: fetchHeartRateData(profileId, selectedDate),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Center(child: CircularProgressIndicator());
+            } else if (snapshot.hasError) {
+              return Center(child: Text('Error loading heart rate data'));
+            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return Center(child: Text('No heart rate data found'));
+            }
 
-        return _buildHeartRateChart(snapshot.data!);
-      },
+            return _buildHeartRateChart(snapshot.data!);
+          },
+        ),
+      ],
     );
   }
 

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { PatientProfile, PatientMedication, MedicationSchedule } = require('../models');
+const { PatientProfile, PatientMedication, MedicationSchedule, Sequelize } = require('../models'); // Ensure Sequelize is imported
 const verifyToken = require('../middleware/authMiddleware');
 
 // Get patients for a specific caregiver with optional search query and pagination
@@ -8,7 +8,7 @@ router.get('/:userId', verifyToken, async (req, res) => {
   const userId = req.params.userId;
   const searchQuery = req.query.search || '';
   const page = parseInt(req.query.page) || 1;
-  const pageSize = parseInt(req.query.pageSize) || 10;
+  const pageSize = parseInt(req.query.pageSize) || 8;
   const offset = (page - 1) * pageSize;
 
   try {

@@ -30,7 +30,7 @@ class Patient {
       gender: json['Gender'],
       address: json['Address'],
       emergencyContact: json['EmergencyContact'],
-      medications: (json['PatientMedications'] as List)
+      medications: (json['PatientMedications'] != null ? json['PatientMedications'] as List : [])
           .map((med) => Medication.fromJson(med))
           .toList(),
     );

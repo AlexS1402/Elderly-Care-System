@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:caregiver_dashboard/services/patient_service.dart';
 import 'package:caregiver_dashboard/models/patient.dart';
 import 'package:caregiver_dashboard/nav_bar.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:intl/intl.dart'; // Ensure this import for date formatting
 
 class PatientListScreen extends StatefulWidget {
   @override
@@ -13,6 +15,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
   int currentPage = 1;
   int totalPages = 1;
   String searchQuery = '';
+  final storage = const FlutterSecureStorage();
 
   @override
   void initState() {
@@ -21,8 +24,15 @@ class _PatientListScreenState extends State<PatientListScreen> {
   }
 
   fetchPatients() async {
+    String? userId = await storage.read(key: 'userId');
+    if (userId == null) {
+      print('No user ID found in storage');
+      return;
+    }
+
     try {
-      final response = await PatientService.getPatientsForCaregiver(currentPage, searchQuery, currentPage, 10);
+      final response = await PatientService.getPatientsForCaregiver(
+          int.parse(userId), searchQuery, currentPage, 8);
       setState(() {
         patients = response['patients'];
         totalPages = response['totalPages'];
@@ -37,7 +47,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
     return NavBar(
       child: Scaffold(
         appBar: AppBar(
-          title: Text('Patient List'),
+          title: const Text('Patient List'),
         ),
         body: SingleChildScrollView(
           child: Center(
@@ -45,54 +55,54 @@ class _PatientListScreenState extends State<PatientListScreen> {
               width: MediaQuery.of(context).size.width * 0.7,
               child: Column(
                 children: [
-                  Text(
+                  const Text(
                     'Patient List Page',
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   Table(
                     border: TableBorder.all(color: Colors.blue),
                     children: [
-                      TableRow(
+                      const TableRow(
                         decoration: BoxDecoration(color: Colors.blue),
                         children: [
                           Padding(
-                            padding: const EdgeInsets.all(8.0),
+                            padding: EdgeInsets.all(8.0),
                             child: Text(
                               'Patient Name',
                               style: TextStyle(color: Colors.white),
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.all(8.0),
+                            padding: EdgeInsets.all(8.0),
                             child: Text(
                               'DOB',
                               style: TextStyle(color: Colors.white),
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.all(8.0),
+                            padding: EdgeInsets.all(8.0),
                             child: Text(
                               'Gender',
                               style: TextStyle(color: Colors.white),
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.all(8.0),
+                            padding: EdgeInsets.all(8.0),
                             child: Text(
                               'Emergency Contact',
                               style: TextStyle(color: Colors.white),
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.all(8.0),
+                            padding: EdgeInsets.all(8.0),
                             child: Text(
                               'Address',
                               style: TextStyle(color: Colors.white),
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.all(8.0),
+                            padding: EdgeInsets.all(8.0),
                             child: Text(
                               'See Patient Details',
                               style: TextStyle(color: Colors.white),
@@ -105,11 +115,13 @@ class _PatientListScreenState extends State<PatientListScreen> {
                           children: [
                             Padding(
                               padding: const EdgeInsets.all(8.0),
-                              child: Text('${patient.firstName} ${patient.lastName}'),
+                              child: Text(
+                                  '${patient.firstName} ${patient.lastName}'),
                             ),
                             Padding(
                               padding: const EdgeInsets.all(8.0),
-                              child: Text(patient.dob.toString()),
+                              child: Text(
+                                  DateFormat('yyyy-MM-dd').format(patient.dob)),
                             ),
                             Padding(
                               padding: const EdgeInsets.all(8.0),
@@ -126,7 +138,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
                             Padding(
                               padding: const EdgeInsets.all(8.0),
                               child: IconButton(
-                                icon: Icon(Icons.info),
+                                icon: const Icon(Icons.info),
                                 onPressed: () {
                                   Navigator.pushNamed(
                                     context,
@@ -140,7 +152,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
                         ),
                     ],
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -153,11 +165,11 @@ class _PatientListScreenState extends State<PatientListScreen> {
                                 });
                               }
                             : null,
-                        child: Text('Previous'),
+                        child: const Text('Previous'),
                       ),
-                      SizedBox(width: 10),
+                      const SizedBox(width: 10),
                       Text('Page $currentPage of $totalPages'),
-                      SizedBox(width: 10),
+                      const SizedBox(width: 10),
                       ElevatedButton(
                         onPressed: currentPage < totalPages
                             ? () {
@@ -167,7 +179,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
                                 });
                               }
                             : null,
-                        child: Text('Next'),
+                        child: const Text('Next'),
                       ),
                     ],
                   ),
