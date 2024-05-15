@@ -3,45 +3,22 @@ module.exports = (sequelize, DataTypes) => {
     ProfileID: {
       type: DataTypes.INTEGER,
       primaryKey: true,
-      autoIncrement: true
+      autoIncrement: true,
     },
-    FirstName: {
-      type: DataTypes.STRING,
-      allowNull: false
-    },
-    LastName: {
-      type: DataTypes.STRING,
-      allowNull: false
-    },
-    DOB: {
-      type: DataTypes.DATE,
-      allowNull: false
-    },
-    Gender: {
-      type: DataTypes.ENUM('Male', 'Female', 'Other'),
-      allowNull: false
-    },
-    Address: {
-      type: DataTypes.STRING,
-      allowNull: true
-    },
-    EmergencyContact: {
-      type: DataTypes.STRING,
-      allowNull: true
-    },
-    UserId: {
-      type: DataTypes.INTEGER,
-      allowNull: false
-    }
+    FirstName: DataTypes.STRING,
+    LastName: DataTypes.STRING,
+    DOB: DataTypes.DATE,
+    Gender: DataTypes.ENUM('Male', 'Female', 'Other'),
+    Address: DataTypes.STRING,
+    EmergencyContact: DataTypes.STRING,
+    UserId: DataTypes.INTEGER,
   }, {
     tableName: 'patientprofiles',
-    freezeTableName: true,
-    timestamps: false
+    timestamps: false,
   });
 
-  PatientProfile.associate = (models) => {
-    PatientProfile.belongsTo(models.User, { foreignKey: 'UserId' });
-    PatientProfile.hasMany(models.SensorDataHistory, { foreignKey: 'ProfileID' });
+  PatientProfile.associate = function(models) {
+    PatientProfile.hasMany(models.PatientMedication, { foreignKey: 'ProfileID' });
   };
 
   return PatientProfile;

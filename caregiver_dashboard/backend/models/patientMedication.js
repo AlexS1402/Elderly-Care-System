@@ -3,36 +3,22 @@ module.exports = (sequelize, DataTypes) => {
       PatientMedicationID: {
         type: DataTypes.INTEGER,
         primaryKey: true,
-        autoIncrement: true
+        autoIncrement: true,
       },
-      MedicationName: {
-        type: DataTypes.STRING,
-        allowNull: false
-      },
-      Dosage: {
-        type: DataTypes.STRING,
-        allowNull: false
-      },
-      StartDate: {
-        type: DataTypes.DATE,
-        allowNull: false
-      },
-      EndDate: {
-        type: DataTypes.DATE,
-        allowNull: true
-      },
-      FrequencyPerDay: {
-        type: DataTypes.INTEGER,
-        allowNull: false
-      }
+      MedicationName: DataTypes.STRING,
+      Dosage: DataTypes.STRING,
+      FrequencyPerDay: DataTypes.INTEGER,
+      StartDate: DataTypes.DATE,
+      EndDate: DataTypes.DATE,
+      ProfileID: DataTypes.INTEGER,
     }, {
-      tableName: 'patientmedications',  // Specify the actual table name
-      freezeTableName: true,
-      timestamps: false
+      tableName: 'patientmedications',
+      timestamps: false,
     });
   
-    PatientMedication.associate = (models) => {
+    PatientMedication.associate = function(models) {
       PatientMedication.hasMany(models.MedicationSchedule, { foreignKey: 'PatientMedicationID' });
+      PatientMedication.belongsTo(models.PatientProfile, { foreignKey: 'ProfileID' });
     };
   
     return PatientMedication;

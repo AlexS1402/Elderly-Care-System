@@ -3,23 +3,16 @@ module.exports = (sequelize, DataTypes) => {
       ScheduleID: {
         type: DataTypes.INTEGER,
         primaryKey: true,
-        autoIncrement: true
+        autoIncrement: true,
       },
-      PatientMedicationID: {
-        type: DataTypes.INTEGER,
-        allowNull: false
-      },
-      ScheduledTime: {
-        type: DataTypes.TIME,
-        allowNull: false
-      }
+      ScheduledTime: DataTypes.TIME,
+      PatientMedicationID: DataTypes.INTEGER,
     }, {
-      tableName: 'medicationschedules',  // Specify the actual table name
-      freezeTableName: true,
-      timestamps: false
+      tableName: 'medicationschedules',
+      timestamps: false,
     });
   
-    MedicationSchedule.associate = (models) => {
+    MedicationSchedule.associate = function(models) {
       MedicationSchedule.belongsTo(models.PatientMedication, { foreignKey: 'PatientMedicationID' });
     };
   

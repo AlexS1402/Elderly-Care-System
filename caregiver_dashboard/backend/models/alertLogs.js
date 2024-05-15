@@ -22,10 +22,14 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false
       }
     }, {
-      tableName: 'alertlogs',  // Specify the actual table name
+      tableName: 'alertlogs',
       freezeTableName: true,
       timestamps: false
     });
+
+    AlertLog.associate = function(models) {
+        AlertLog.belongsTo(models.PatientProfile, { foreignKey: 'ProfileID' });
+      };
   
     return AlertLog;
   };
