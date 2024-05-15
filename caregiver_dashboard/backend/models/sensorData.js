@@ -1,5 +1,5 @@
 module.exports = (sequelize, DataTypes) => {
-  const SensorData = sequelize.define('SensorData', {
+  const SensorDataHistory = sequelize.define('SensorDataHistory', {
     DataHistoryID: {
       type: DataTypes.INTEGER,
       autoIncrement: true,
@@ -21,14 +21,16 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.DOUBLE,
       allowNull: false
     }
+  }, {
+    tableName: 'sensordatahistory' // Specify the table name explicitly
   });
 
-  SensorData.associate = (models) => {
-    SensorData.belongsTo(models.PatientProfile, {
+  SensorDataHistory.associate = (models) => {
+    SensorDataHistory.belongsTo(models.PatientProfile, {
       foreignKey: 'ProfileID',
       as: 'patientProfile'
     });
   };
 
-  return SensorData;
+  return SensorDataHistory;
 };

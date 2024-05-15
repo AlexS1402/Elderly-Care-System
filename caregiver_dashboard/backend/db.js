@@ -22,4 +22,21 @@ sequelize.authenticate()
   .then(() => console.log('Database connection successful'))
   .catch(err => console.error('Error connecting to the database:', err));
 
-module.exports = sequelize;
+// Load all models
+const models = {};
+const modelsDir = path.resolve(__dirname, 'models');
+fs.readdirSync(modelsDir).forEach(file => {
+  const model = require(path.join(modelsDir, file))(sequelize, Sequelize.DataTypes);
+  models[model.name] = model;
+});
+
+Object.keys(models).forEach(modelName => {
+  if (models[modelName].associate) {
+    models[modelName].associate(models);
+  }
+});
+
+models.sequelize = sequelize;
+models.Sequelize = Sequelize;
+
+module.exports = models;
