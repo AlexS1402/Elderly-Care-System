@@ -18,13 +18,10 @@ class Patient {
     required this.gender,
     required this.address,
     required this.emergencyContact,
-    required this.medications,
+    this.medications = const [],
   });
 
   factory Patient.fromJson(Map<String, dynamic> json) {
-    var medicationsJson = json['PatientMedications'] as List? ?? [];
-    List<Medication> medications = medicationsJson.map((med) => Medication.fromJson(med)).toList();
-
     return Patient(
       profileId: json['ProfileID'],
       firstName: json['FirstName'],
@@ -33,7 +30,9 @@ class Patient {
       gender: json['Gender'],
       address: json['Address'],
       emergencyContact: json['EmergencyContact'],
-      medications: medications,
+      medications: (json['PatientMedications'] as List)
+          .map((med) => Medication.fromJson(med))
+          .toList(),
     );
   }
 }

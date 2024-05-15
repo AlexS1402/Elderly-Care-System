@@ -3,6 +3,10 @@ import 'package:caregiver_dashboard/services/patient_service.dart';
 import 'package:caregiver_dashboard/models/patient.dart';
 import 'package:caregiver_dashboard/nav_bar.dart';
 import 'package:intl/intl.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class PatientDetailScreen extends StatefulWidget {
   const PatientDetailScreen({super.key});
@@ -14,6 +18,7 @@ class PatientDetailScreen extends StatefulWidget {
 class _PatientDetailScreenState extends State<PatientDetailScreen> {
   Future<Patient>? patientFuture;
   String currentSection = 'Profile';
+  final storage = FlutterSecureStorage();
 
   @override
   void didChangeDependencies() {
@@ -33,7 +38,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: schedules.map<Widget>((schedule) {
-              return Text(schedule.scheduledTime); // Use scheduledTime instead of time
+              return Text(schedule.scheduledTime);
             }).toList(),
           ),
           actions: [
@@ -101,9 +106,62 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     );
   }
 
-  Widget _buildSensorDataSection() {
-    // This section can be filled with sensor data visualizations.
-    return Center(child: Text('Sensor Data Section', style: TextStyle(fontSize: 18)));
+  Future<List<Map<String, dynamic>>> fetchHeartRateData(int profileId) async {
+    String? token = await storage.read(key: 'jwt');
+    final response = await http.get(
+      Uri.parse('http://localhost:3000/api/sensorData/$profileId/heartRate'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(jsonDecode(response.body));
+    } else {
+      throw Exception('Failed to load heart rate data');
+    }
+  }
+
+  Widget _buildHeartRateChart(List<Map<String, dynamic>> data) {
+    return LineChart(
+      LineChartData(
+        titlesData: FlTitlesData(
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(showTitles: true),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(showTitles: true, getTitlesWidget: (value, meta) {
+              final DateTime date = DateTime.fromMillisecondsSinceEpoch(value.toInt());
+              return Text(DateFormat('HH:mm').format(date));
+            }),
+          ),
+        ),
+        borderData: FlBorderData(show: true),
+        lineBarsData: [
+          LineChartBarData(
+            spots: data.map((point) {
+              final DateTime date = DateTime.parse(point['timeInterval']);
+              return FlSpot(date.millisecondsSinceEpoch.toDouble(), point['avgHeartRate']);
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSensorDataSection(int profileId) {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: fetchHeartRateData(profileId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          return Center(child: Text('Error loading heart rate data'));
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return Center(child: Text('No heart rate data found'));
+        }
+
+        return _buildHeartRateChart(snapshot.data!);
+      },
+    );
   }
 
   Widget _buildInfoRow(IconData icon, String label, String value, {bool underline = false}) {
@@ -183,17 +241,17 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                         TextButton(
                           onPressed: () {
                             setState(() {
-                              currentSection = 'Sensor Data';
+                              currentSection = 'Heart Rate Data';
                             });
                           },
-                          child: Text('Sensor Data', style: TextStyle(color: currentSection == 'Sensor Data' ? Colors.blue : Colors.black)),
+                          child: Text('Heart Rate Data', style: TextStyle(color: currentSection == 'Heart Rate Data' ? Colors.blue : Colors.black)),
                         ),
                       ],
                     ),
                     Divider(color: Colors.black),
                     if (currentSection == 'Profile') _buildProfileSection(patient),
                     if (currentSection == 'Medication') _buildMedicationSection(patient),
-                    if (currentSection == 'Sensor Data') _buildSensorDataSection(),
+                    if (currentSection == 'Heart Rate Data') _buildSensorDataSection(patient.profileId),
                   ],
                 ),
               ),

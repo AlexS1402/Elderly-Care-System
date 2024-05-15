@@ -1,16 +1,16 @@
 class SensorData {
-  final DateTime timestamp;
-  final double value;
+  final String timeInterval;
+  final double avgHeartRate;
 
   SensorData({
-    required this.timestamp,
-    required this.value,
+    required this.timeInterval,
+    required this.avgHeartRate,
   });
 
   factory SensorData.fromJson(Map<String, dynamic> json) {
     return SensorData(
-      timestamp: DateTime.parse(json['Timestamp']),
-      value: json['Value'].toDouble(),
+      timeInterval: json['timeInterval'] ?? '', // Default to empty string if null
+      avgHeartRate: json['avgHeartRate']?.toDouble() ?? 0.0, // Default to 0.0 if null
     );
   }
 }
