@@ -11,7 +11,13 @@ module.exports = (sequelize, DataTypes) => {
     Gender: DataTypes.ENUM('Male', 'Female', 'Other'),
     Address: DataTypes.STRING,
     EmergencyContact: DataTypes.STRING,
-    UserId: DataTypes.INTEGER,
+    UserId: {
+      type: DataTypes.INTEGER,
+      references: {
+        model: 'users', // name of the target model/table
+        key: 'UserID', // key in the target model/table that we're referencing
+      }
+    },
   }, {
     tableName: 'patientprofiles',
     timestamps: false,
@@ -19,6 +25,7 @@ module.exports = (sequelize, DataTypes) => {
 
   PatientProfile.associate = function(models) {
     PatientProfile.hasMany(models.PatientMedication, { foreignKey: 'ProfileID' });
+    PatientProfile.belongsTo(models.User, { foreignKey: 'UserId' }); // Establish the association
   };
 
   return PatientProfile;

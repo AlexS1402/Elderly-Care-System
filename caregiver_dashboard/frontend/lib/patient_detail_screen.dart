@@ -60,7 +60,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
         Text('Patient Details:', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
         Divider(color: Colors.black),
         SizedBox(height: 8),
-        _buildInfoRow(Icons.cake, 'Date of Birth', DateFormat('dd-MM-yyyy HH:mm:ss').format(patient.dob)),
+        _buildInfoRow(Icons.cake, 'Date of Birth', DateFormat('dd-MM-yyyy').format(patient.dob)),
         _buildInfoRow(Icons.person, 'Gender', patient.gender),
         _buildInfoRow(Icons.location_on, 'Address', patient.address),
         _buildInfoRow(Icons.contact_phone, 'Emergency Contact', patient.emergencyContact),

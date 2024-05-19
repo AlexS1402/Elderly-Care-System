@@ -1,7 +1,7 @@
 class MedicationSchedule {
-  final int scheduleId;
-  final String scheduledTime;
-  final int patientMedicationId;
+  int scheduleId;
+  String scheduledTime;
+  int patientMedicationId;
 
   MedicationSchedule({
     required this.scheduleId,
@@ -15,5 +15,13 @@ class MedicationSchedule {
       scheduledTime: json['ScheduledTime'],
       patientMedicationId: json['PatientMedicationID'],
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'ScheduleID': scheduleId,
+      'ScheduledTime': scheduledTime,
+      'PatientMedicationID': patientMedicationId,
+    };
   }
 }

@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:caregiver_dashboard/services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -12,7 +13,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final storage = FlutterSecureStorage();
+  final storage = const FlutterSecureStorage();
   String _errorMessage = '';
 
   Future<void> _login() async {
@@ -31,6 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (response.statusCode == 200) {
         await storage.write(key: 'jwt', value: data['token']);
         await storage.write(key: 'userId', value: data['userId'].toString());
+        await storage.write(key: 'userRole', value: data['userRole']);
         Navigator.pushReplacementNamed(context, '/home');
       } else {
         setState(() {
@@ -51,7 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: Colors.grey[200],
       body: Center(
         child: Padding(
-          padding: EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(16.0),
           child: ConstrainedBox(
             constraints: BoxConstraints(
               maxWidth: MediaQuery.of(context).size.width < 600
@@ -62,12 +64,12 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  padding: EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.all(16.0),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(10.0),
                     boxShadow: [
-                      BoxShadow(
+                      const BoxShadow(
                         color: Colors.black26,
                         blurRadius: 10.0,
                         offset: Offset(0, 5),
@@ -85,8 +87,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ? MediaQuery.of(context).size.width * 0.16
                                 : 64,
                           ), // Placeholder for logo
-                          SizedBox(width: 10),
-                          Expanded(
+                          const SizedBox(width: 10),
+                          const Expanded(
                             child: Text(
                               'Elderly Care System',
                               style: TextStyle(
@@ -97,8 +99,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ],
                       ),
-                      SizedBox(height: 20),
-                      Text(
+                      const SizedBox(height: 20),
+                      const Text(
                         'Sign In',
                         style: TextStyle(
                           fontSize: 24,
@@ -106,38 +108,38 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      SizedBox(height: 20),
+                      const SizedBox(height: 20),
                       if (_errorMessage.isNotEmpty)
                         Text(
                           _errorMessage,
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: Colors.red,
                             fontSize: 16,
                           ),
                         ),
-                      SizedBox(height: 10),
+                      const SizedBox(height: 10),
                       TextField(
                         controller: _usernameController,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           labelText: 'Username',
                           border: OutlineInputBorder(),
                         ),
                       ),
-                      SizedBox(height: 10),
+                      const SizedBox(height: 10),
                       TextField(
                         controller: _passwordController,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           labelText: 'Password',
                           border: OutlineInputBorder(),
                         ),
                         obscureText: true,
                       ),
-                      SizedBox(height: 20),
+                      const SizedBox(height: 20),
                       ElevatedButton(
                         onPressed: _login,
-                        child: Text('Sign In'),
+                        child: const Text('Sign In'),
                         style: ElevatedButton.styleFrom(
-                          padding: EdgeInsets.symmetric(
+                          padding: const EdgeInsets.symmetric(
                             horizontal: 50,
                             vertical: 15,
                           ),

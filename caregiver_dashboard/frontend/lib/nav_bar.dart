@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'home_screen.dart';
 import 'patient_list_screen.dart';
+import 'admin_screen.dart';
 import 'login_screen.dart';
+import 'package:caregiver_dashboard/services/auth_service.dart';
 
 class NavBar extends StatefulWidget {
   final Widget child;
@@ -17,6 +19,20 @@ class _NavBarState extends State<NavBar> {
   bool _isDrawerOpen = false;
   final storage = FlutterSecureStorage();
   Map<int, bool> _hovering = {};
+  String? _userRole;
+
+  @override
+  void initState() {
+    super.initState();
+    _getUserRole();
+  }
+
+  void _getUserRole() async {
+    String? role = await AuthService.getUserRole();
+    setState(() {
+      _userRole = role;
+    });
+  }
 
   void _toggleDrawer() {
     setState(() {
@@ -64,7 +80,7 @@ class _NavBarState extends State<NavBar> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SizedBox(height: 80), // Add space to avoid being hidden by the header
+                      SizedBox(height: 80),
                       Expanded(
                         child: ListView(
                           children: [
@@ -75,58 +91,75 @@ class _NavBarState extends State<NavBar> {
                                 title: Text(
                                   'Home',
                                   style: TextStyle(
-                                    color: _hovering[0] == true ? Colors.blue : Colors.black,
+                                    color: _hovering[0] == true
+                                        ? Colors.blue
+                                        : Colors.black,
                                   ),
                                 ),
                                 onTap: () {
                                   Navigator.pushReplacement(
                                     context,
-                                    MaterialPageRoute(builder: (context) => HomeScreen()),
+                                    MaterialPageRoute(
+                                        builder: (context) => HomeScreen()),
                                   );
                                 },
                               ),
                             ),
-                            MouseRegion(
-                              onEnter: (_) => _onHover(1, true),
-                              onExit: (_) => _onHover(1, false),
-                              child: ListTile(
-                                title: Text(
-                                  'Patient List',
-                                  style: TextStyle(
-                                    color: _hovering[1] == true ? Colors.blue : Colors.black,
+                            if (_userRole != 'Admin') // Only show for non-admin users
+                              MouseRegion(
+                                onEnter: (_) => _onHover(1, true),
+                                onExit: (_) => _onHover(1, false),
+                                child: ListTile(
+                                  title: Text(
+                                    'Patient List',
+                                    style: TextStyle(
+                                      color: _hovering[1] == true
+                                          ? Colors.blue
+                                          : Colors.black,
+                                    ),
                                   ),
+                                  onTap: () {
+                                    Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (context) =>
+                                              PatientListScreen()),
+                                    );
+                                  },
                                 ),
-                                onTap: () {
-                                  Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(builder: (context) => PatientListScreen()),
-                                  );
-                                },
                               ),
-                            ),
+                            if (_userRole == 'Admin') // Only show for admin users
+                              MouseRegion(
+                                onEnter: (_) => _onHover(2, true),
+                                onExit: (_) => _onHover(2, false),
+                                child: ListTile(
+                                  title: Text(
+                                    'Admin Page',
+                                    style: TextStyle(
+                                      color: _hovering[2] == true
+                                          ? Colors.blue
+                                          : Colors.black,
+                                    ),
+                                  ),
+                                  onTap: () {
+                                    Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (context) => AdminScreen()),
+                                    );
+                                  },
+                                ),
+                              ),
                             MouseRegion(
                               onEnter: (_) => _onHover(3, true),
                               onExit: (_) => _onHover(3, false),
                               child: ListTile(
                                 title: Text(
-                                  'Accessibility Features',
-                                  style: TextStyle(
-                                    color: _hovering[3] == true ? Colors.blue : Colors.black,
-                                  ),
-                                ),
-                                onTap: () {
-                                  // Implement the accessibility features popup
-                                },
-                              ),
-                            ),
-                            MouseRegion(
-                              onEnter: (_) => _onHover(4, true),
-                              onExit: (_) => _onHover(4, false),
-                              child: ListTile(
-                                title: Text(
                                   'Sign Out',
                                   style: TextStyle(
-                                    color: _hovering[4] == true ? Colors.blue : Colors.black,
+                                    color: _hovering[3] == true
+                                        ? Colors.blue
+                                        : Colors.black,
                                   ),
                                 ),
                                 onTap: _signOut,

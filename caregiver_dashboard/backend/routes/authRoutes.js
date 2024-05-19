@@ -20,30 +20,10 @@ router.post('/login', async (req, res) => {
     }
 
     const token = jwt.sign({ id: user.UserID }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    res.json({ message: 'Login successful!', token, userId: user.UserID });
+    res.json({ message: 'Login successful!', token, userId: user.UserID, userRole: user.UserRole });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ message: 'Login failed' });
-  }
-});
-
-// Registration Route (optional)
-router.post('/register', async (req, res) => {
-  const { username, password, email, userRole } = req.body;
-
-  try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = await User.create({
-      Username: username,
-      PasswordHash: hashedPassword,
-      Email: email,
-      UserRole: userRole
-    });
-
-    res.status(201).json({ message: 'User registered!', user });
-  } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ message: 'Registration failed' });
   }
 });
 

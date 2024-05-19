@@ -1,3 +1,4 @@
+import 'package:caregiver_dashboard/edit_medication_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -5,6 +6,10 @@ import 'login_screen.dart';
 import 'home_screen.dart';
 import 'patient_list_screen.dart';
 import 'patient_detail_screen.dart';
+import 'admin_screen.dart';
+import 'add_patient_screen.dart';
+import 'add_medication_screen.dart';
+import 'add_user_screen.dart';
 
 void main() async {
   await dotenv.load(fileName: ".env");
@@ -44,6 +49,27 @@ class MyApp extends StatelessWidget {
               builder = (BuildContext context) => PatientDetailScreen();
             }
             break;
+          case '/admin':
+            builder = (BuildContext context) => CheckAdminAccess(AdminScreen());
+            break;
+          case '/add-patient':
+            builder = (BuildContext context) => AddPatientScreen();
+            break;
+          case '/add-medication':
+            final args = settings.arguments as Map<String, dynamic>;
+            final profileId = args['profileId'] as int;
+            builder = (BuildContext context) =>
+                AddMedicationScreen(profileId: profileId);
+            break;
+          case '/edit-medications':
+            final args = settings.arguments as Map<String, dynamic>;
+            final profileId = args['profileId'] as int;
+            builder = (BuildContext context) =>
+                EditMedicationsScreen(profileId: profileId);
+            break;
+          case '/add-user':
+            builder = (BuildContext context) => AddUserScreen();
+            break;
           default:
             builder = (BuildContext context) => HomeScreen();
             break;
@@ -71,11 +97,45 @@ class CheckAuth extends StatelessWidget {
           return CircularProgressIndicator();
         } else {
           if (snapshot.data == true) {
-            Future.microtask(() => Navigator.pushReplacementNamed(context, '/home'));
+            Future.microtask(
+                () => Navigator.pushReplacementNamed(context, '/home'));
           } else {
-            Future.microtask(() => Navigator.pushReplacementNamed(context, '/login'));
+            Future.microtask(
+                () => Navigator.pushReplacementNamed(context, '/login'));
           }
           return Container();
+        }
+      },
+    );
+  }
+}
+
+class CheckAdminAccess extends StatelessWidget {
+  final Widget adminPage;
+  final storage = FlutterSecureStorage();
+
+  CheckAdminAccess(this.adminPage);
+
+  Future<bool> isAdmin() async {
+    String? role = await storage.read(key: 'userRole');
+    return role == 'Admin';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: isAdmin(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return CircularProgressIndicator();
+        } else {
+          if (snapshot.data == true) {
+            return adminPage;
+          } else {
+            Future.microtask(
+                () => Navigator.pushReplacementNamed(context, '/home'));
+            return Container();
+          }
         }
       },
     );

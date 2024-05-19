@@ -1,14 +1,14 @@
 import 'medication_schedule.dart';
 
 class Medication {
-  final int medicationId;
-  final String name;
-  final String dosage;
-  final int frequencyPerDay;
-  final String startDate;
-  final String endDate;
-  final int profileId;
-  final List<MedicationSchedule> schedules;
+  int medicationId;
+  String name;
+  String dosage;
+  int frequencyPerDay;
+  DateTime startDate;
+  DateTime endDate;
+  int profileId;
+  List<MedicationSchedule> schedules;
 
   Medication({
     required this.medicationId,
@@ -27,12 +27,25 @@ class Medication {
       name: json['MedicationName'],
       dosage: json['Dosage'],
       frequencyPerDay: json['FrequencyPerDay'],
-      startDate: json['StartDate'],
-      endDate: json['EndDate'],
+      startDate: DateTime.parse(json['StartDate']),
+      endDate: DateTime.parse(json['EndDate']),
       profileId: json['ProfileID'],
       schedules: (json['MedicationSchedules'] as List)
           .map((schedule) => MedicationSchedule.fromJson(schedule))
           .toList(),
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'PatientMedicationID': medicationId,
+      'MedicationName': name,
+      'Dosage': dosage,
+      'FrequencyPerDay': frequencyPerDay,
+      'StartDate': startDate.toIso8601String(),
+      'EndDate': endDate.toIso8601String(),
+      'ProfileID': profileId,
+      'MedicationSchedules': schedules.map((schedule) => schedule.toJson()).toList(),
+    };
   }
 }

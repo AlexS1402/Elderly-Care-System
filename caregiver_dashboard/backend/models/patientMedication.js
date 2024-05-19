@@ -1,5 +1,7 @@
 module.exports = (sequelize, DataTypes) => {
-    const PatientMedication = sequelize.define('PatientMedication', {
+  const PatientMedication = sequelize.define(
+    "PatientMedication",
+    {
       PatientMedicationID: {
         type: DataTypes.INTEGER,
         primaryKey: true,
@@ -11,16 +13,21 @@ module.exports = (sequelize, DataTypes) => {
       StartDate: DataTypes.DATE,
       EndDate: DataTypes.DATE,
       ProfileID: DataTypes.INTEGER,
-    }, {
-      tableName: 'patientmedications',
+    },
+    {
+      tableName: "patientmedications",
       timestamps: false,
+    }
+  );
+
+  PatientMedication.associate = function (models) {
+    PatientMedication.belongsTo(models.PatientProfile, {
+      foreignKey: "ProfileID",
     });
-  
-    PatientMedication.associate = function(models) {
-      PatientMedication.hasMany(models.MedicationSchedule, { foreignKey: 'PatientMedicationID' });
-      PatientMedication.belongsTo(models.PatientProfile, { foreignKey: 'ProfileID' });
-    };
-  
-    return PatientMedication;
+    PatientMedication.hasMany(models.MedicationSchedule, {
+      foreignKey: "PatientMedicationID",
+    });
   };
-  
+
+  return PatientMedication;
+};

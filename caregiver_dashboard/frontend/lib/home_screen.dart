@@ -3,6 +3,7 @@ import 'package:caregiver_dashboard/services/alert_service.dart';
 import 'package:caregiver_dashboard/nav_bar.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
+import 'package:caregiver_dashboard/services/auth_service.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -14,14 +15,27 @@ class _HomeScreenState extends State<HomeScreen> {
   int currentPage = 1;
   int totalPages = 1;
   final storage = FlutterSecureStorage();
+  bool isAdmin = false;
 
   @override
   void initState() {
     super.initState();
-    fetchAlertLogs();
+    checkUserRole();
   }
 
-  fetchAlertLogs() async {
+  Future<void> checkUserRole() async {
+    String? role = await AuthService.getUserRole();
+    if (role == 'Admin') {
+      setState(() {
+        isAdmin = true;
+      });
+      fetchAlertLogsForAdmin();
+    } else {
+      fetchAlertLogs();
+    }
+  }
+
+  Future<void> fetchAlertLogs() async {
     String? userId = await storage.read(key: 'userId');
     if (userId == null) {
       print('No user ID found in storage');
@@ -29,7 +43,20 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     try {
-      final response = await AlertService.getAlertLogs(int.parse(userId), currentPage);
+      final response =
+          await AlertService.getAlertLogs(int.parse(userId), currentPage);
+      setState(() {
+        alertLogs = List<Map<String, dynamic>>.from(response['logs']);
+        totalPages = response['totalPages'];
+      });
+    } catch (e) {
+      print('Failed to load alert logs: $e');
+    }
+  }
+
+  Future<void> fetchAlertLogsForAdmin() async {
+    try {
+      final response = await AlertService.getAllAlertLogs(currentPage);
       setState(() {
         alertLogs = List<Map<String, dynamic>>.from(response['logs']);
         totalPages = response['totalPages'];
@@ -47,7 +74,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _resolveAlert(int alertId) async {
     try {
       await AlertService.resolveAlert(alertId);
-      fetchAlertLogs();
+      if (isAdmin) {
+        fetchAlertLogsForAdmin();
+      } else {
+        fetchAlertLogs();
+      }
     } catch (e) {
       print('Failed to resolve alert: $e');
     }
@@ -59,7 +90,8 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) {
         return AlertDialog(
           title: Text('Resolve Alert'),
-          content: Text('Are you sure you would like to mark this alert as resolved?'),
+          content: Text(
+              'Are you sure you would like to mark this alert as resolved?'),
           actions: [
             TextButton(
               onPressed: () {
@@ -98,10 +130,28 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Center(
                       child: Text(
-                        'Welcome to the Caregiver Dashboard',
-                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                        'Welcome to the ${isAdmin ? 'Admin' : 'Caregiver'} Dashboard',
+                        style: TextStyle(
+                            fontSize: 24, fontWeight: FontWeight.bold),
                       ),
                     ),
+                    if (isAdmin) ...[
+                      SizedBox(height: 16),
+                      Center(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pushNamed(context, '/add-user');
+                          },
+                          style: ElevatedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            backgroundColor: Colors.green[900], // White text
+                            side: BorderSide(
+                                color: Colors.green[900]!), // Dark green border
+                          ),
+                          child: Text('Register New User'),
+                        ),
+                      ),
+                    ],
                     SizedBox(height: 32),
                     Text(
                       'Alert Logs',
@@ -154,7 +204,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         for (var log in alertLogs)
                           TableRow(
                             decoration: BoxDecoration(
-                              color: log['Resolved'] ? Colors.white : Colors.red[100],
+                              color: log['Resolved']
+                                  ? Colors.white
+                                  : Colors.red[100],
                             ),
                             children: [
                               Padding(
@@ -162,13 +214,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                 child: InkWell(
                                   child: Text(
                                     '${log['PatientProfile']['FirstName']} ${log['PatientProfile']['LastName']}',
-                                    style: TextStyle(color: Colors.blue, decoration: TextDecoration.underline),
+                                    style: TextStyle(
+                                        color: Colors.blue,
+                                        decoration: TextDecoration.underline),
                                   ),
                                   onTap: () {
                                     Navigator.pushNamed(
                                       context,
                                       '/patient-detail',
-                                      arguments: log['PatientProfile']['ProfileID'],
+                                      arguments: log['PatientProfile']
+                                          ['ProfileID'],
                                     );
                                   },
                                 ),
@@ -183,25 +238,31 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               Padding(
                                 padding: const EdgeInsets.all(8.0),
-                                child: Text(log['PatientProfile']['EmergencyContact']),
+                                child: Text(
+                                    log['PatientProfile']['EmergencyContact']),
                               ),
                               Padding(
                                 padding: const EdgeInsets.all(8.0),
                                 child: log['Resolved']
                                     ? Text(
                                         'YES',
-                                        style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                                        style: TextStyle(
+                                            color: Colors.green,
+                                            fontWeight: FontWeight.bold),
                                       )
                                     : Row(
                                         children: [
                                           Text(
                                             'NO',
-                                            style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                                            style: TextStyle(
+                                                color: Colors.red,
+                                                fontWeight: FontWeight.bold),
                                           ),
                                           Checkbox(
                                             value: false,
                                             onChanged: (bool? value) {
-                                              _showResolveDialog(log['AlertID']);
+                                              _showResolveDialog(
+                                                  log['AlertID']);
                                             },
                                           ),
                                         ],
@@ -220,7 +281,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               ? () {
                                   setState(() {
                                     currentPage--;
-                                    fetchAlertLogs();
+                                    if (isAdmin) {
+                                      fetchAlertLogsForAdmin();
+                                    } else {
+                                      fetchAlertLogs();
+                                    }
                                   });
                                 }
                               : null,
@@ -234,7 +299,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               ? () {
                                   setState(() {
                                     currentPage++;
-                                    fetchAlertLogs();
+                                    if (isAdmin) {
+                                      fetchAlertLogsForAdmin();
+                                    } else {
+                                      fetchAlertLogs();
+                                    }
                                   });
                                 }
                               : null,
@@ -248,10 +317,16 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: TextStyle(fontSize: 20, color: Colors.blue),
                     ),
                     SizedBox(height: 8),
-                    Text(
-                      'Here you will find answers to the most frequently asked questions...',
-                      style: TextStyle(fontSize: 16),
-                    ),
+                    if (isAdmin)
+                      Text(
+                        'Admin FAQ: Here you will find answers to the most frequently asked questions for administrators...',
+                        style: TextStyle(fontSize: 16),
+                      )
+                    else
+                      Text(
+                        'Caregiver FAQ: Here you will find answers to the most frequently asked questions for caregivers...',
+                        style: TextStyle(fontSize: 16),
+                      ),
                   ],
                 ),
               ),

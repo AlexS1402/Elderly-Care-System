@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { SensorDataHistory, sequelize } = require('../models');
-const verifyToken = require('../middleware/authMiddleware');
+const { verifyToken, verifyAdmin } = require('../middleware/authMiddleware');
 
 // Get hourly average heart rate data for a specific patient profile on a specific date
 router.get('/:profileId/heartRate', verifyToken, async (req, res) => {

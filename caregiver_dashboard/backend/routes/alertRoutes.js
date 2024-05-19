@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { AlertLog, PatientProfile } = require('../models');
-const verifyToken = require('../middleware/authMiddleware');
+const { verifyToken, verifyAdmin } = require('../middleware/authMiddleware');
 
 // Get recent alert logs for a specific caregiver
 router.get('/recent/:userId', verifyToken, async (req, res) => {
@@ -16,6 +16,34 @@ router.get('/recent/:userId', verifyToken, async (req, res) => {
         {
           model: PatientProfile,
           where: { UserId: userId },
+          attributes: ['FirstName', 'LastName', 'EmergencyContact', 'ProfileID'],
+        },
+      ],
+      attributes: ['AlertID', 'AlertTimestamp', 'AlertType', 'ProfileID', 'Resolved'],
+      order: [['AlertTimestamp', 'DESC']],
+      limit: pageSize,
+      offset: offset,
+    });
+
+    const totalPages = Math.ceil(count / pageSize);
+    res.json({ logs: rows, totalPages });
+  } catch (error) {
+    console.error('Error fetching alert logs:', error);
+    res.status(500).json({ message: 'Error fetching alert logs' });
+  }
+});
+
+// Get all alert logs for admin
+router.get('/recent', verifyToken, verifyAdmin, async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const pageSize = 5;
+  const offset = (page - 1) * pageSize;
+
+  try {
+    const { count, rows } = await AlertLog.findAndCountAll({
+      include: [
+        {
+          model: PatientProfile,
           attributes: ['FirstName', 'LastName', 'EmergencyContact', 'ProfileID'],
         },
       ],
