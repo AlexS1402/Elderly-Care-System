@@ -1,3 +1,5 @@
+import os
+from dotenv import load_dotenv
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
 import sqlite3
@@ -18,6 +20,9 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from twilio.rest import Client
 
+# Load environment variables from .env file
+load_dotenv()
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -26,28 +31,26 @@ MODEL_PATH = '/home/albxii/ecs/ecs_rf_model.pkl'
 DB_CONFIGS = {
     'sqlite': {
         'type': 'sqlite',
-        'path': '/home/albxii/ecs/elderlycaresystemlocaldb.db'
+        'path': os.getenv('SQLITE_DB_PATH')
     },
     'mysql': {
         'type': 'mysql',
-        'host': 'elderlycaresystemclouddb.mysql.database.azure.com',
-        'user': 'root_admin',
-        'passwd': '1A2a4=33NTG.',
-        'database': 'elderlycareclouddb'
+        'host': os.getenv('MYSQL_HOST'),
+        'user': os.getenv('MYSQL_USER'),
+        'passwd': os.getenv('MYSQL_PASSWORD'),
+        'database': os.getenv('MYSQL_DATABASE')
     }
 }
 THRESHOLDS = {'acc': 1.0, 'gyro': 150}
 
-# Email configuration
-EMAIL_ADDRESS = '14asaunders02@gmail.com'
-EMAIL_PASSWORD = 'lhnn ndcc gijh wucn'
-SMTP_SERVER = 'smtp.gmail.com'
-SMTP_PORT = 587
-
-# Twilio configuration
-TWILIO_ACCOUNT_SID = 'AC0e90ddd778631c28ca2dadb29a04ddc7'
-TWILIO_AUTH_TOKEN = 'a81c6a00a80b10db69f78e02238ed866'
-TWILIO_PHONE_NUMBER = '+447445188026'
+# Email and Twilio configuration
+EMAIL_ADDRESS = os.getenv('EMAIL_ADDRESS')
+EMAIL_PASSWORD = os.getenv('EMAIL_PASSWORD')
+SMTP_SERVER = os.getenv('SMTP_SERVER')
+SMTP_PORT = int(os.getenv('SMTP_PORT'))
+TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
+TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
+TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER')
 
 # Load the machine learning model
 model = joblib.load(MODEL_PATH)
