@@ -1,3 +1,5 @@
+import tkinter as tk
+from tkinter import ttk, messagebox, scrolledtext
 import sqlite3
 import mysql.connector
 from mysql.connector import Error
@@ -9,6 +11,12 @@ import random
 import joblib
 import os
 import logging
+import bcrypt
+import threading
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from twilio.rest import Client
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -28,14 +36,30 @@ DB_CONFIGS = {
         'database': 'elderlycareclouddb'
     }
 }
-
 THRESHOLDS = {'acc': 1.0, 'gyro': 150}
+
+# Email configuration
+EMAIL_ADDRESS = '14asaunders02@gmail.com'
+EMAIL_PASSWORD = 'lhnn ndcc gijh wucn'
+SMTP_SERVER = 'smtp.gmail.com'
+SMTP_PORT = 587
+
+# Twilio configuration
+TWILIO_ACCOUNT_SID = 'AC0e90ddd778631c28ca2dadb29a04ddc7'
+TWILIO_AUTH_TOKEN = 'a81c6a00a80b10db69f78e02238ed866'
+TWILIO_PHONE_NUMBER = '+447445188026'
 
 # Load the machine learning model
 model = joblib.load(MODEL_PATH)
 
+# Global variables to store user and patient info
+current_user = None
+current_patient = None
+fall_detection_thread = None
+stop_event = threading.Event()
+
+# Function to connect to the database
 def connect_to_database(config):
-    """Establishes database connection based on the type specified in the config."""
     conn = None
     try:
         if config['type'] == 'sqlite':
@@ -54,97 +78,161 @@ def connect_to_database(config):
         return None
     return conn
 
+# Function to execute database queries
 def execute_db_query(cursor, query, data=None, fetch=False):
-    """Executes a database query safely."""
     try:
         cursor.execute(query, data or ())
         return cursor.fetchall() if fetch else None
     except Error as e:
         logging.error(f"Database query error: {e}")
         return None
-    finally:
-        cursor.close()  # Ensure the cursor is closed after operation
 
 def insert_sensor_data(conn, profile_id, timestamp, sensor_type, value):
-    """Inserts sensor data into the database."""
     placeholder = '?' if isinstance(conn, sqlite3.Connection) else '%s'
     table_name = 'sensordata' if isinstance(conn, sqlite3.Connection) else 'sensordatahistory'
     sql = f'''INSERT INTO {table_name}(ProfileID, Timestamp, SensorType, Value)
               VALUES({placeholder}, {placeholder}, {placeholder}, {placeholder})'''
-    try:
-        cursor = conn.cursor()  # Manually creating a cursor
-        cursor.execute(sql, (profile_id, timestamp, sensor_type, value))
-        conn.commit()
-    finally:
-        cursor.close()  # Ensuring the cursor is closed after operations
+    cursor = conn.cursor()
+    execute_db_query(cursor, sql, (profile_id, timestamp, sensor_type, value))
+    conn.commit()
+    cursor.close()
 
 def insert_alert_log(conn, profile_id, alert_type, timestamp, resolved=0):
-    """Inserts an alert log into the database."""
     placeholder = '?' if isinstance(conn, sqlite3.Connection) else '%s'
     sql = f'''INSERT INTO alertlogs(ProfileID, AlertType, AlertTimestamp, Resolved)
               VALUES({placeholder}, {placeholder}, {placeholder}, {placeholder})'''
     cursor = conn.cursor()
     execute_db_query(cursor, sql, (profile_id, alert_type, timestamp, resolved))
     conn.commit()
+    cursor.close()
 
-
-def fetch_and_send_medication_reminders(mysql_conn, profile_id):
-    logging.info("Starting to fetch medication reminders.")
-    now = datetime.datetime.now()
-    current_time = now.strftime('%H:%M:%S')
-
+def fetch_and_log_medication_schedules(mysql_conn, profile_id):
     query = """
-        SELECT m.MedicationName, s.ScheduledTime FROM medicationschedules s
+        SELECT m.MedicationName, s.ScheduledTime 
+        FROM medicationschedules s
         JOIN patientmedications m ON s.PatientMedicationID = m.PatientMedicationID
-        WHERE m.ProfileID = %s AND DATE(s.ScheduledTime) = CURDATE()
+        WHERE m.ProfileID = %s AND CURDATE() BETWEEN m.StartDate AND m.EndDate
     """
     cursor = mysql_conn.cursor()
     results = execute_db_query(cursor, query, (profile_id,), fetch=True)
     cursor.close()
     if results:
-        for (medication_name, scheduled_time) in results:
-            # Convert timedelta to time and compare with current time
-            if (datetime.datetime.min + scheduled_time).time().strftime('%H:%M:%S') == current_time:
-                send_medication_reminder(profile_id, medication_name, scheduled_time)
-    logging.info("Completed fetching medication reminders.")
+        log_message(f"Medication schedules for patient")
+        for medication_name, scheduled_time in results:
+            scheduled_time_str = (datetime.datetime.min + scheduled_time).time().strftime('%H:%M:%S')
+            log_message(f"{medication_name} at {scheduled_time_str}")
+    else:
+        log_message(f"No medication schedules found for patient {profile_id}.")
 
-def send_medication_reminder(profile_id, medication_name, scheduled_time):
-    """Simulated function to send medication reminder to wearable device."""
-    logging.info(f"Reminder sent for {medication_name} at {scheduled_time} to profile {profile_id}")
+def fetch_and_send_medication_reminders(mysql_conn, profile_id):
+    now = datetime.datetime.now()
+    current_time = now.strftime('%H:%M:%S')
+    query = """
+        SELECT m.MedicationName, s.ScheduledTime 
+        FROM medicationschedules s
+        JOIN patientmedications m ON s.PatientMedicationID = m.PatientMedicationID
+        WHERE m.ProfileID = %s AND CURDATE() BETWEEN m.StartDate AND m.EndDate
+    """
+    cursor = mysql_conn.cursor()
+    results = execute_db_query(cursor, query, (profile_id,), fetch=True)
+    cursor.close()
+    if results:
+        for medication_name, scheduled_time in results:
+            # Convert scheduled_time to a string for comparison
+            scheduled_time_str = (datetime.datetime.min + scheduled_time).time().strftime('%H:%M:%S')
+            if scheduled_time_str == current_time:
+                log_message(f"Reminder: Take {medication_name} at {scheduled_time_str}")
+                # Placeholder for sending the reminder to the ESP32 wearable device
+                # send_medication_reminder_to_device(profile_id, medication_name, scheduled_time)
 
 def simulate_sensor_data():
-    """Generates simulated sensor data."""
     heart_rate = random.randint(60, 100)
     accelerometer = np.random.uniform(-2, 2, 3)
     gyroscope = np.random.uniform(-200, 200, 3)
     return heart_rate, accelerometer, gyroscope
 
 def detect_fall(accelerometer, gyroscope):
-    """Determines whether a fall has occurred based on sensor data and a machine learning model."""
-    # Initial threshold check to see if further analysis is required
     if np.max(np.abs(accelerometer)) > THRESHOLDS['acc'] or np.max(np.abs(gyroscope)) > THRESHOLDS['gyro']:
-        # Prepare the data as a DataFrame with the same structure used in model training
         features = pd.DataFrame([[
             accelerometer[0], accelerometer[1], accelerometer[2], 
             gyroscope[0], gyroscope[1], gyroscope[2]
         ]], columns=['xAcc', 'yAcc', 'zAcc', 'xGyro', 'yGyro', 'zGyro'])
-
-        # Predict using the trained model
         prediction = model.predict(features)
         if prediction[0] == 'Fall Detected':
             return True
     return False
 
-def main():
-    profile_id = 1
+def get_emergency_contact(mysql_conn, profile_id):
+    query = """
+        SELECT pp.EmergencyContact, pp.FirstName, pp.LastName, pp.Address, u.Email 
+        FROM patientprofiles pp 
+        JOIN users u ON pp.UserId = u.UserID 
+        WHERE pp.ProfileID = %s
+    """
+    cursor = mysql_conn.cursor()
+    result = execute_db_query(cursor, query, (profile_id,), fetch=True)
+    cursor.close()
+    if result:
+        return result[0]
+    return None, None, None, None, None
+
+def send_alerts(profile_id, alert_message, mysql_conn):
+    emergency_contact_phone, first_name, last_name, address, emergency_contact_email = get_emergency_contact(mysql_conn, profile_id)
+    if emergency_contact_phone and emergency_contact_email:
+        alert_message = f"Fall detected for {first_name} {last_name} at {address}. {alert_message}"
+        send_email_alert("Fall Detected Alert", alert_message, emergency_contact_email)
+        send_sms_alert(alert_message, emergency_contact_phone)
+    else:
+        log_message(f"Emergency contact details not found for profile {profile_id}")
+
+def send_email_alert(subject, body, to_address):
+    msg = MIMEMultipart()
+    msg['From'] = EMAIL_ADDRESS
+    msg['To'] = to_address
+    msg['Subject'] = subject
+    msg.attach(MIMEText(body, 'plain'))
+    try:
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+        text = msg.as_string()
+        server.sendmail(EMAIL_ADDRESS, to_address, text)
+        server.quit()
+        log_message(f"Email sent to {to_address}")
+    except Exception as e:
+        log_message(f"Failed to send email: {e}")
+
+def send_sms_alert(body, to_phone_number):
+    client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+    try:
+        message = client.messages.create(
+            body=body,
+            from_=TWILIO_PHONE_NUMBER,
+            to=to_phone_number
+        )
+        log_message(f"SMS sent to {to_phone_number}: {message.sid}")
+    except Exception as e:
+        log_message(f"Failed to send SMS: {e}")
+
+def start_system():
+    global fall_detection_thread, stop_event
+    stop_event.clear()
+    fall_detection_thread = threading.Thread(target=run_system)
+    fall_detection_thread.start()
+    check_thread_status()
+
+def run_system():
+    profile_id = current_patient['ProfileID']
     with connect_to_database(DB_CONFIGS['sqlite']) as sqlite_conn, \
          connect_to_database(DB_CONFIGS['mysql']) as mysql_conn:
         if sqlite_conn is None or mysql_conn is None:
-            logging.error("Failed to connect to databases.")
+            log_message("Failed to connect to databases.")
             return
 
+        fetch_and_log_medication_schedules(mysql_conn, profile_id)
+
         try:
-            while not os.path.exists('stop.txt'):
+            while not stop_event.is_set():
                 timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 heart_rate, accelerometer, gyroscope = simulate_sensor_data()
                 insert_sensor_data(sqlite_conn, profile_id, timestamp, 'Heart Rate', heart_rate)
@@ -158,22 +246,139 @@ def main():
 
                 if detect_fall(accelerometer, gyroscope):
                     alert_message = f"Fall detected at {timestamp}"
-                    logging.info(alert_message)
+                    log_message(alert_message)
                     insert_alert_log(sqlite_conn, profile_id, 'Fall Detected', timestamp)
                     insert_alert_log(mysql_conn, profile_id, 'Fall Detected', timestamp)
-                    send_alert_to_device(alert_message)
+                    send_alerts(profile_id, alert_message, mysql_conn)
                 else:
-                    logging.info(f"No fall detected at {timestamp}")
+                    log_message(f"No fall detected at {timestamp}")
 
-                time.sleep(1)
+                for _ in range(10):  # Check the stop event every 0.1 seconds
+                    if stop_event.is_set():
+                        break
+                    time.sleep(0.1)
         except KeyboardInterrupt:
-            logging.info("Program terminated by user.")
+            log_message("Program terminated by user.")
         finally:
-            logging.info("Database connections will be automatically closed.")
+            log_message("Database connections will be automatically closed.")
 
-def send_alert_to_device(message):
-    """Sends an alert to a wearable device. Placeholder for actual device communication logic."""
-    logging.info(f"Sending alert to device: {message}")
+def stop_system():
+    global stop_event
+    stop_event.set()
 
-if __name__ == "__main__":
-    main()
+def check_thread_status():
+    if fall_detection_thread.is_alive():
+        root.after(100, check_thread_status)
+    else:
+        start_button.config(state=tk.NORMAL)
+        stop_button.config(state=tk.NORMAL)
+
+def log_message(message):
+    console_output.insert(tk.END, message + "\n")
+    console_output.see(tk.END)
+    logging.info(message)
+
+def login_user():
+    global current_user, current_patient
+    username = username_entry.get()
+    password = password_entry.get()
+    with connect_to_database(DB_CONFIGS['mysql']) as mysql_conn:
+        query = "SELECT UserID, PasswordHash FROM users WHERE Username = %s"
+        cursor = mysql_conn.cursor()
+        result = execute_db_query(cursor, query, (username,), fetch=True)
+        cursor.close()
+        if result and bcrypt.checkpw(password.encode('utf-8'), result[0][1].encode('utf-8')):
+            current_user = {'UserID': result[0][0], 'Username': username}
+            fetch_patients()
+        else:
+            messagebox.showerror("Login Failed", "Invalid username or password")
+
+def fetch_patients():
+    with connect_to_database(DB_CONFIGS['mysql']) as mysql_conn:
+        query = "SELECT ProfileID, FirstName, LastName FROM patientprofiles WHERE UserID = %s"
+        cursor = mysql_conn.cursor()
+        results = execute_db_query(cursor, query, (current_user['UserID'],), fetch=True)
+        cursor.close()
+        if results:
+            for result in results:
+                patients_listbox.insert(tk.END, f"{result[1]} {result[2]}")
+            patient_selection_frame.pack()
+        else:
+            messagebox.showerror("No Patients Found", "No patients found for this user")
+
+def select_patient(event):
+    global current_patient
+    selection = event.widget.curselection()
+    if selection:
+        index = selection[0]
+        patient_name = event.widget.get(index)
+        first_name, last_name = patient_name.split()
+        with connect_to_database(DB_CONFIGS['mysql']) as mysql_conn:
+            query = "SELECT * FROM patientprofiles WHERE FirstName = %s AND LastName = %s AND UserID = %s"
+            cursor = mysql_conn.cursor()
+            result = execute_db_query(cursor, query, (first_name, last_name, current_user['UserID']), fetch=True)
+            cursor.close()
+            if result:
+                current_patient = {
+                    'ProfileID': result[0][0],
+                    'FirstName': result[0][2],
+                    'LastName': result[0][3],
+                    'EmergencyContact': result[0][7],
+                    'Address': result[0][6]
+                }
+                patient_name_label.config(text=f"Patient: {current_patient['FirstName']} {current_patient['LastName']}")
+                login_frame.pack_forget()
+                patient_selection_frame.pack_forget()
+                main_frame.pack()
+
+def logout_user():
+    global current_user, current_patient
+    current_user = None
+    current_patient = None
+    main_frame.pack_forget()
+    login_frame.pack()
+
+# GUI setup
+root = tk.Tk()
+root.title("Elderly Care System")
+
+# Login Frame
+login_frame = tk.Frame(root)
+login_frame.pack()
+tk.Label(login_frame, text="Username:").grid(row=0, column=0)
+username_entry = tk.Entry(login_frame)
+username_entry.grid(row=0, column=1)
+tk.Label(login_frame, text="Password:").grid(row=1, column=0)
+password_entry = tk.Entry(login_frame, show='*')
+password_entry.grid(row=1, column=1)
+login_button = tk.Button(login_frame, text="Login", command=login_user)
+login_button.grid(row=2, columnspan=2)
+
+# Patient Selection Frame
+patient_selection_frame = tk.Frame(root)
+tk.Label(patient_selection_frame, text="Select a Patient:").pack()
+patients_listbox = tk.Listbox(patient_selection_frame)
+patients_listbox.pack()
+patients_listbox.bind('<<ListboxSelect>>', select_patient)
+
+# Main Frame
+main_frame = tk.Frame(root)
+tk.Label(main_frame, text="Elderly Care System", font=("Arial", 24)).pack()
+patient_name_label = tk.Label(main_frame, text="", font=("Arial", 18))
+patient_name_label.pack()
+
+# Console output
+console_output = scrolledtext.ScrolledText(main_frame, width=80, height=20)
+console_output.pack()
+
+# Start and Stop buttons
+buttons_frame = tk.Frame(main_frame)
+buttons_frame.pack(pady=10)
+start_button = tk.Button(buttons_frame, text="Start", command=start_system)
+start_button.grid(row=0, column=0, padx=5)
+stop_button = tk.Button(buttons_frame, text="Stop", command=stop_system)
+stop_button.grid(row=0, column=1, padx=5)
+change_login_button = tk.Button(buttons_frame, text="Change Login Details", command=logout_user)
+change_login_button.grid(row=0, column=2, padx=5)
+
+root.mainloop()
