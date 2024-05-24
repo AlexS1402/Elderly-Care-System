@@ -58,6 +58,8 @@ data_topic = "esp32/data"
 alert_topic = "esp32/alert"
 med_reminder_topic = "esp32/medReminder"
 control_topic = "esp32/control"
+check_status_topic = "esp32/checkStatus"
+status_topic = "esp32/status"
 
 # Load the machine learning model
 model = joblib.load(MODEL_PATH)
@@ -67,6 +69,8 @@ current_user = None
 current_patient = None
 fall_detection_thread = None
 stop_event = threading.Event()
+device_status_checked = False
+sensor_data_transmitted = False
 
 # Function to connect to the database
 def connect_to_database(config):
@@ -127,12 +131,11 @@ def fetch_and_log_medication_schedules(mysql_conn, profile_id):
     results = execute_db_query(cursor, query, (profile_id,), fetch=True)
     cursor.close()
     if results:
-        log_message(f"Medication schedules for patient")
         for medication_name, scheduled_time in results:
             scheduled_time_str = (datetime.datetime.min + scheduled_time).time().strftime('%H:%M:%S')
-            log_message(f"{medication_name} at {scheduled_time_str}")
+            logging.info(f"{medication_name} at {scheduled_time_str}")
     else:
-        log_message(f"No medication schedules found for patient {profile_id}.")
+        logging.info(f"No medication schedules found for patient {profile_id}.")
 
 def fetch_and_send_medication_reminders(mysql_conn, profile_id):
     now = datetime.datetime.now()
@@ -148,11 +151,9 @@ def fetch_and_send_medication_reminders(mysql_conn, profile_id):
     cursor.close()
     if results:
         for medication_name, scheduled_time in results:
-            # Convert scheduled_time to a string for comparison
             scheduled_time_str = (datetime.datetime.min + scheduled_time).time().strftime('%H:%M:%S')
             if scheduled_time_str == current_time:
-                log_message(f"Reminder: Take {medication_name} at {scheduled_time_str}")
-                # Send the reminder to the ESP32 wearable device
+                logging.info(f"Reminder: Take {medication_name} at {scheduled_time_str}")
                 send_medication_reminder_to_device(medication_name, scheduled_time_str)
 
 def detect_fall(accelerometer, gyroscope):
@@ -187,7 +188,7 @@ def send_alerts(profile_id, alert_message, mysql_conn):
         send_email_alert("Fall Detected Alert", alert_message, emergency_contact_email)
         send_sms_alert(alert_message, emergency_contact_phone)
     else:
-        log_message(f"Emergency contact details not found for profile {profile_id}")
+        logging.info(f"Emergency contact details not found for profile {profile_id}")
 
 def send_email_alert(subject, body, to_address):
     msg = MIMEMultipart()
@@ -202,9 +203,9 @@ def send_email_alert(subject, body, to_address):
         text = msg.as_string()
         server.sendmail(EMAIL_ADDRESS, to_address, text)
         server.quit()
-        log_message(f"Email sent to {to_address}")
+        logging.info(f"Email sent to {to_address}")
     except Exception as e:
-        log_message(f"Failed to send email: {e}")
+        logging.info(f"Failed to send email: {e}")
 
 def send_sms_alert(body, to_phone_number):
     client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
@@ -214,20 +215,32 @@ def send_sms_alert(body, to_phone_number):
             from_=TWILIO_PHONE_NUMBER,
             to=to_phone_number
         )
-        log_message(f"SMS sent to {to_phone_number}: {message.sid}")
+        logging.info(f"SMS sent to {to_phone_number}: {message.sid}")
     except Exception as e:
-        log_message(f"Failed to send SMS: {e}")
+        logging.info(f"Failed to send SMS: {e}")
 
 def send_medication_reminder_to_device(medication_name, scheduled_time):
     reminder_message = f"Reminder: Take {medication_name} at {scheduled_time}"
     client.publish(med_reminder_topic, reminder_message)
 
+def check_device_connection():
+    global device_status_checked
+    device_status_checked = False
+    client.publish(check_status_topic, "check")
+    time.sleep(5)  # Wait for the device to respond
+    if not device_status_checked:
+        log_message("No Wearable Device Found...")
+    else:
+        log_message("Device Connected.")
+
 # MQTT Callbacks
 def on_connect(client, userdata, flags, rc):
     print("Connected with result code " + str(rc))
     client.subscribe(data_topic)
+    client.subscribe(status_topic)
 
 def on_message(client, userdata, msg):
+    global device_status_checked, sensor_data_transmitted
     print(f"Message received on topic {msg.topic}: {msg.payload.decode()}")
     if msg.topic == data_topic:
         data = json.loads(msg.payload.decode())
@@ -241,15 +254,18 @@ def on_message(client, userdata, msg):
                 insert_sensor_data(mysql_conn, profile_id, timestamp, 'Heart Rate', heart_rate)
                 insert_sensor_data(mysql_conn, profile_id, timestamp, 'Accelerometer', np.mean(accel_data))
                 insert_sensor_data(mysql_conn, profile_id, timestamp, 'Gyroscope', np.mean(gyro_data))
-                log_message(f"Heart Rate: {heart_rate}\nAccelerometer: {accel_data}\nGyroscope: {gyro_data}")
                 if detect_fall(accel_data, gyro_data):
                     alert_message = f"Fall detected at {timestamp}"
-                    log_message(alert_message)
+                    logging.info(alert_message)
                     insert_alert_log(mysql_conn, profile_id, 'Fall Detected', timestamp)
                     send_alerts(profile_id, alert_message, mysql_conn)
                     client.publish(alert_topic, "Fall detected!")
-        else:
-            log_message("No current patient selected, skipping data processing.")
+            if not sensor_data_transmitted:
+                log_message("Sensor Data is being transmitted...")
+                sensor_data_transmitted = True
+    elif msg.topic == status_topic:
+        if msg.payload.decode() == "connected":
+            device_status_checked = True
 
 # MQTT Client Setup
 client = mqtt.Client()
@@ -260,12 +276,18 @@ client.connect(mqtt_server, 1883, 60)
 client.loop_start()
 
 def start_system():
-    global fall_detection_thread, stop_event
+    global fall_detection_thread, stop_event, sensor_data_transmitted
     stop_event.clear()
-    client.publish(control_topic, "start")  # Send start message to ESP32
-    fall_detection_thread = threading.Thread(target=run_system)
-    fall_detection_thread.start()
-    check_thread_status()
+    sensor_data_transmitted = False
+    check_device_connection()  # Check device connection first
+    if device_status_checked:
+        client.publish(control_topic, "start")  # Send start message to ESP32
+        log_message("Starting...")
+        fall_detection_thread = threading.Thread(target=run_system)
+        fall_detection_thread.start()
+        check_thread_status()
+    else:
+        log_message("Unable to start system without connected wearable device.")
 
 def run_system():
     if current_patient is not None:
@@ -273,27 +295,27 @@ def run_system():
         with connect_to_database(DB_CONFIGS['sqlite']) as sqlite_conn, \
              connect_to_database(DB_CONFIGS['mysql']) as mysql_conn:
             if sqlite_conn is None or mysql_conn is None:
-                log_message("Failed to connect to databases.")
+                logging.info("Failed to connect to databases.")
                 return
 
             fetch_and_log_medication_schedules(mysql_conn, profile_id)
 
             try:
                 while not stop_event.is_set():
-                    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     fetch_and_send_medication_reminders(mysql_conn, profile_id)
                     time.sleep(1)
             except KeyboardInterrupt:
-                log_message("Program terminated by user.")
+                logging.info("Program terminated by user.")
             finally:
-                log_message("Database connections will be automatically closed.")
+                logging.info("Database connections will be automatically closed.")
     else:
-        log_message("No current patient selected, cannot start system.")
+        logging.info("No current patient selected, cannot start system.")
 
 def stop_system():
     global stop_event
     stop_event.set()
     client.publish(control_topic, "stop")  # Send stop message to ESP32
+    log_message("Stopped.")
 
 def check_thread_status():
     if fall_detection_thread.is_alive():
@@ -359,6 +381,7 @@ def select_patient(event):
                 login_frame.pack_forget()
                 patient_selection_frame.pack_forget()
                 main_frame.pack()
+                log_message("Welcome to the Elderly Care System, please press 'Start' to begin tracking.")
 
 def logout_user():
     global current_user, current_patient
