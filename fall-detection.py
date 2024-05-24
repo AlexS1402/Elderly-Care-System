@@ -9,9 +9,7 @@ import datetime
 import numpy as np
 import pandas as pd
 import time
-import random
 import joblib
-import os
 import logging
 import bcrypt
 import threading
@@ -56,10 +54,10 @@ TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER')
 
 # MQTT Configuration
 mqtt_server = "localhost"
-heart_rate_topic = "esp32/heartRate"
-accel_gyro_topic = "esp32/accelGyro"
+data_topic = "esp32/data"
 alert_topic = "esp32/alert"
 med_reminder_topic = "esp32/medReminder"
+control_topic = "esp32/control"
 
 # Load the machine learning model
 model = joblib.load(MODEL_PATH)
@@ -154,14 +152,8 @@ def fetch_and_send_medication_reminders(mysql_conn, profile_id):
             scheduled_time_str = (datetime.datetime.min + scheduled_time).time().strftime('%H:%M:%S')
             if scheduled_time_str == current_time:
                 log_message(f"Reminder: Take {medication_name} at {scheduled_time_str}")
-                # Placeholder for sending the reminder to the ESP32 wearable device
-                send_medication_reminder_to_device(profile_id, medication_name, scheduled_time_str)
-
-def simulate_sensor_data():
-    heart_rate = random.randint(60, 100)
-    accelerometer = np.random.uniform(-2, 2, 3)
-    gyroscope = np.random.uniform(-200, 200, 3)
-    return heart_rate, accelerometer, gyroscope
+                # Send the reminder to the ESP32 wearable device
+                send_medication_reminder_to_device(medication_name, scheduled_time_str)
 
 def detect_fall(accelerometer, gyroscope):
     if np.max(np.abs(accelerometer)) > THRESHOLDS['acc'] or np.max(np.abs(gyroscope)) > THRESHOLDS['gyro']:
@@ -226,27 +218,30 @@ def send_sms_alert(body, to_phone_number):
     except Exception as e:
         log_message(f"Failed to send SMS: {e}")
 
-def send_medication_reminder_to_device(profile_id, medication_name, scheduled_time):
+def send_medication_reminder_to_device(medication_name, scheduled_time):
     reminder_message = f"Reminder: Take {medication_name} at {scheduled_time}"
     client.publish(med_reminder_topic, reminder_message)
 
 # MQTT Callbacks
 def on_connect(client, userdata, flags, rc):
     print("Connected with result code " + str(rc))
-    client.subscribe([(heart_rate_topic, 0), (accel_gyro_topic, 0)])
+    client.subscribe(data_topic)
 
 def on_message(client, userdata, msg):
     print(f"Message received on topic {msg.topic}: {msg.payload.decode()}")
-    if msg.topic == accel_gyro_topic:
+    if msg.topic == data_topic:
         data = json.loads(msg.payload.decode())
+        heart_rate = data['heartRate']
         accel_data = np.array(data['accel'])
         gyro_data = np.array(data['gyro'])
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         if current_patient is not None:
             profile_id = current_patient['ProfileID']
             with connect_to_database(DB_CONFIGS['mysql']) as mysql_conn:
+                insert_sensor_data(mysql_conn, profile_id, timestamp, 'Heart Rate', heart_rate)
                 insert_sensor_data(mysql_conn, profile_id, timestamp, 'Accelerometer', np.mean(accel_data))
                 insert_sensor_data(mysql_conn, profile_id, timestamp, 'Gyroscope', np.mean(gyro_data))
+                log_message(f"Heart Rate: {heart_rate}\nAccelerometer: {accel_data}\nGyroscope: {gyro_data}")
                 if detect_fall(accel_data, gyro_data):
                     alert_message = f"Fall detected at {timestamp}"
                     log_message(alert_message)
@@ -267,6 +262,7 @@ client.loop_start()
 def start_system():
     global fall_detection_thread, stop_event
     stop_event.clear()
+    client.publish(control_topic, "start")  # Send start message to ESP32
     fall_detection_thread = threading.Thread(target=run_system)
     fall_detection_thread.start()
     check_thread_status()
@@ -285,29 +281,8 @@ def run_system():
             try:
                 while not stop_event.is_set():
                     timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    heart_rate, accelerometer, gyroscope = simulate_sensor_data()
-                    insert_sensor_data(sqlite_conn, profile_id, timestamp, 'Heart Rate', heart_rate)
-                    insert_sensor_data(mysql_conn, profile_id, timestamp, 'Heart Rate', heart_rate)
-                    insert_sensor_data(sqlite_conn, profile_id, timestamp, 'Accelerometer', np.mean(accelerometer))
-                    insert_sensor_data(mysql_conn, profile_id, timestamp, 'Accelerometer', np.mean(accelerometer))
-                    insert_sensor_data(sqlite_conn, profile_id, timestamp, 'Gyroscope', np.mean(gyroscope))
-                    insert_sensor_data(mysql_conn, profile_id, timestamp, 'Gyroscope', np.mean(gyroscope))
-
                     fetch_and_send_medication_reminders(mysql_conn, profile_id)
-
-                    if detect_fall(accelerometer, gyroscope):
-                        alert_message = f"Fall detected at {timestamp}"
-                        log_message(alert_message)
-                        insert_alert_log(sqlite_conn, profile_id, 'Fall Detected', timestamp)
-                        insert_alert_log(mysql_conn, profile_id, 'Fall Detected', timestamp)
-                        send_alerts(profile_id, alert_message, mysql_conn)
-                    else:
-                        log_message(f"No fall detected at {timestamp}")
-
-                    for _ in range(10):  # Check the stop event every 0.1 seconds
-                        if stop_event.is_set():
-                            break
-                        time.sleep(0.1)
+                    time.sleep(1)
             except KeyboardInterrupt:
                 log_message("Program terminated by user.")
             finally:
@@ -318,6 +293,7 @@ def run_system():
 def stop_system():
     global stop_event
     stop_event.set()
+    client.publish(control_topic, "stop")  # Send stop message to ESP32
 
 def check_thread_status():
     if fall_detection_thread.is_alive():
