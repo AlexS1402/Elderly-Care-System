@@ -115,7 +115,7 @@ class _AdminScreenState extends State<AdminScreen> {
     Navigator.pushNamed(
       context,
       '/edit-medications',
-      arguments: profileId,
+      arguments: {'profileId': profileId},
     );
   }
 

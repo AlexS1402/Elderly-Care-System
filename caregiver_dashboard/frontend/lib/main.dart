@@ -63,9 +63,8 @@ class MyApp extends StatelessWidget {
             break;
           case '/edit-medications':
             final args = settings.arguments as Map<String, dynamic>;
-            final profileId = args['profileId'] as int;
             builder = (BuildContext context) =>
-                EditMedicationsScreen(profileId: profileId);
+                EditMedicationsScreen(arguments: args);
             break;
           case '/add-user':
             builder = (BuildContext context) => AddUserScreen();

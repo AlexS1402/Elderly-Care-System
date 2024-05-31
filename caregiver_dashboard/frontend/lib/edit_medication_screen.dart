@@ -6,27 +6,29 @@ import 'package:caregiver_dashboard/services/medication_service.dart';
 import 'package:caregiver_dashboard/nav_bar.dart';
 
 class EditMedicationsScreen extends StatefulWidget {
-  final int profileId;
+  final Map<String, dynamic> arguments;
 
-  EditMedicationsScreen({required this.profileId});
+  EditMedicationsScreen({required this.arguments});
 
   @override
   _EditMedicationsScreenState createState() => _EditMedicationsScreenState();
 }
 
 class _EditMedicationsScreenState extends State<EditMedicationsScreen> {
+  late int profileId;
   List<Medication> medications = [];
   int currentMedicationIndex = 0;
 
   @override
   void initState() {
     super.initState();
+    profileId = widget.arguments['profileId'];
     fetchMedications();
   }
 
   fetchMedications() async {
     try {
-      final response = await MedicationService.getMedications(widget.profileId);
+      final response = await MedicationService.getMedications(profileId);
       setState(() {
         medications = response;
       });
@@ -92,7 +94,7 @@ class _EditMedicationsScreenState extends State<EditMedicationsScreen> {
     Navigator.pushNamed(
       context,
       '/add-medication',
-      arguments: widget.profileId,
+      arguments: {'profileId': profileId},
     ).then((_) {
       fetchMedications(); // Refresh the list after returning from add medication screen
     });
