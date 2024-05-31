@@ -14,9 +14,9 @@
 #include <esp_task_wdt.h> // Include the watchdog timer library
 #include <esp_sleep.h> // Include the sleep mode library
 
-const char* ssid = "Catlike Cuckoo";
-const char* password = "ThurbelHouse";
-const char* mqtt_server = "192.168.1.161";
+const char* ssid = "";
+const char* password = "";
+const char* mqtt_server = "";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
