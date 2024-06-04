@@ -282,6 +282,6 @@ The Elderly Care System is designed to provide caregivers with a dashboard to mo
 
 For any queries or issues, please contact:
 
-- **Name:** Alex
-- **Email:** alex@example.com
+- **Name:** Alex Saunders
+- **Email:** asaunde4@stu.chi.ac.uk 
 
