@@ -12,10 +12,9 @@ The Elderly Care System is designed to provide caregivers with a dashboard to mo
     2. [Backend Setup](#backend-setup)
     3. [Fall Detection Algorithm Setup](#fall-detection-algorithm-setup)
     4. [Device Setup](#device-setup)
-3. [Testing](#testing)
-4. [Running the Application](#running-the-application)
-5. [Deployment](#deployment)
-6. [Contact](#contact)
+    5. [MQTT Server Setup](#mqtt-server-setup)
+3. [Running the Application](#running-the-application)
+4. [Contact](#contact)
 
 ## Prerequisites
 
@@ -175,59 +174,41 @@ The Elderly Care System is designed to provide caregivers with a dashboard to mo
 5. **Screenshots:**
     - Refer to the "wearable_device" directory for device screenshots.
 
-## Testing
+### MQTT Server Setup
 
-### Unit Testing
-
-1. **Frontend Unit Tests:**
+1. **Install Mosquitto MQTT Broker on Raspberry Pi:**
 
     ```sh
-    flutter test
+    sudo apt update
+    sudo apt install mosquitto mosquitto-clients
+    sudo systemctl enable mosquitto
+    sudo systemctl start mosquitto
     ```
 
-2. **Backend Unit Tests:**
+2. **Configure Mosquitto (optional):**
+
+    - Edit the Mosquitto configuration file if you need custom settings:
 
     ```sh
-    npm test
+    sudo nano /etc/mosquitto/mosquitto.conf
     ```
 
-3. **Fall Detection Unit Tests:**
-
-    Create unit test files in the `fall-detection/tests` directory and run the tests:
+    - Restart Mosquitto service after making changes:
 
     ```sh
-    python -m unittest discover -s fall-detection/tests
+    sudo systemctl restart mosquitto
     ```
 
-### Integration Testing
+3. **Connect the Wearable Device to the MQTT Server:**
+    - Ensure the MQTT server's IP address and WiFi credentials are correctly set in the device source code:
 
-1. **Use Postman to create integration test scripts for API endpoints.**
-2. **Run integration tests using Newman:**
-
-    ```sh
-    newman run <your-collection-file.json>
+    ```cpp
+    const char* ssid = "Your_SSID";
+    const char* password = "Your_PASSWORD";
+    const char* mqtt_server = "Your_Raspberry_Pi_IP";
     ```
 
-3. **Integration Tests for Fall Detection:**
-
-    Ensure the fall detection algorithm is correctly integrated with the databases and alert systems.
-
-### System Testing
-
-1. **Set up Selenium or Cypress for automated system testing.**
-2. **Execute test scripts to verify end-to-end functionality.**
-
-3. **System Tests for Fall Detection:**
-
-    Simulate sensor data and ensure the entire system (from data input to alert generation) functions correctly.
-
-### Security Testing
-
-1. **Use OWASP ZAP or Burp Suite to perform security scans and penetration tests.**
-
-### Load and Performance Testing
-
-1. **Use JMeter or Gatling to simulate concurrent users and measure performance.**
+    - Upload the updated code to the ESP32 device.
 
 ## Running the Application
 
@@ -252,36 +233,9 @@ The Elderly Care System is designed to provide caregivers with a dashboard to mo
     python fall_detection_local.py
     ```
 
-## Deployment
-
-### Frontend Deployment
-
-1. **Build the frontend application:**
-
-    ```sh
-    flutter build web
-    ```
-
-2. **Deploy to Firebase Hosting:**
-
-    ```sh
-    firebase deploy --only hosting
-    ```
-
-### Backend Deployment
-
-1. **Deploy the backend server to a hosting service (e.g., Heroku, AWS, Azure).**
-2. **Ensure the backend server is connected to the MySQL database.**
-
-### Fall Detection Algorithm Deployment
-
-1. **Deploy the fall detection algorithm on a Raspberry Pi or similar device.**
-2. **Ensure the device has access to the necessary environment variables and database connections.**
-
 ## Contact
 
 For any queries or issues, please contact:
 
-- **Name:** Alex
-- **Email:** alex@example.com
-
+- **Name:** Alex Saunders
+- **Email:** asaunde4@stu.chi.ac.uk (university email) / alexander.saunders14@yahoo.co.uk (personal email)
