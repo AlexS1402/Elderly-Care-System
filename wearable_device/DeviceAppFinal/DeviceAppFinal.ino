@@ -329,7 +329,7 @@ void setup() {
   esp_task_wdt_init(WATCHDOG_TIMEOUT, true); // Enable panic so ESP32 restarts
   esp_task_wdt_add(NULL); // Add current thread to watchdog
 
-  // Initialize button pin
+  // Initialize button pin with built-in pull-up resistor
   pinMode(buttonPin, INPUT_PULLUP);
 
   // Subscribe to control topic immediately to receive start command
