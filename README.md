@@ -241,5 +241,3 @@ For any queries or issues, please contact:
 <<<<<<< HEAD
 - **Personal Email:**  alexander.saunders14@yahoo.co.uk
 - **University Email:** asaunde4@stu.chi.ac.uk 
-
->>>>>>> 68e6beb3b9dcf7844566983e0a6d5673d6609fe8
