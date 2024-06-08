@@ -15,6 +15,7 @@ The Elderly Care System is designed to provide caregivers with a dashboard to mo
     5. [MQTT Server Setup](#mqtt-server-setup)
 3. [Running the Application](#running-the-application)
 4. [Contact](#contact)
+5. [Demonstration Video](#demonstration-video)
 
 ## Prerequisites
 
