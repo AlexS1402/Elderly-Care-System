@@ -14,6 +14,7 @@
 #include <esp_task_wdt.h> // Include the watchdog timer library
 #include <esp_sleep.h> // Include the sleep mode library
 
+// Replace with your SSID, password and mqtt_server ip-address.
 const char* ssid = "";
 const char* password = "";
 const char* mqtt_server = "";
