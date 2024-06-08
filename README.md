@@ -123,16 +123,16 @@ The Elderly Care System is designed to provide caregivers with a dashboard to mo
     ```env
     EMAIL_ADDRESS=your_email@gmail.com
     EMAIL_PASSWORD=your_generated_app_password
-    SMTP_SERVER=smtp.gmail.com
-    SMTP_PORT=587
+    SMTP_SERVER=<your-smtp-server>
+    SMTP_PORT=<your-SMTP-port>
     TWILIO_ACCOUNT_SID=your_twilio_account_sid
     TWILIO_AUTH_TOKEN=your_twilio_auth_token
     TWILIO_PHONE_NUMBER=your_twilio_phone_number
-    MYSQL_HOST=elderlycaresystemclouddb.mysql.database.azure.com
-    MYSQL_USER=root_admin
-    MYSQL_PASSWORD=1A2a4=33NTG.
-    MYSQL_DATABASE=elderlycareclouddb
-    SQLITE_DB_PATH=/home/albxii/ecs/elderlycaresystemlocaldb.db
+    MYSQL_HOST=<your-database-host>
+    MYSQL_USER=<your-database-username>
+    MYSQL_PASSWORD=<your-database-password>
+    MYSQL_DATABASE=<your-database-name>
+    SQLITE_DB_PATH=<your-local-datbase-path>
     ```
 
 4. **Set up the MySQL and SQLite databases:**
