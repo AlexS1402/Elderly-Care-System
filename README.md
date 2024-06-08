@@ -244,5 +244,5 @@ For any queries or issues, please contact:
 
 ## Demonstration Video
 
-This is a link to a demonstration video of the system functioning.
+This is a link to a demonstration video of how the system functions.
 https://youtu.be/Me-EucbhGCo
