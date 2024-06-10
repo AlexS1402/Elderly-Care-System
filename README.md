@@ -13,9 +13,11 @@ The Elderly Care System is designed to provide caregivers with a dashboard to mo
     3. [Fall Detection Algorithm Setup](#fall-detection-algorithm-setup)
     4. [Device Setup](#device-setup)
     5. [MQTT Server Setup](#mqtt-server-setup)
+    6. [Local SQL Server Setup on Raspberry Pi](#local-sql-server-setup-on-raspberry-pi)
 3. [Running the Application](#running-the-application)
-4. [Contact](#contact)
-5. [Demonstration Video](#demonstration-video)
+4. [Database Structure](#database-structure)
+5. [Contact](#contact)
+6. [Demonstration Video](#demonstration-video)
 
 ## Prerequisites
 
@@ -211,6 +213,84 @@ The Elderly Care System is designed to provide caregivers with a dashboard to mo
 
     - Upload the updated code to the ESP32 device.
 
+### Local SQL Server Setup on Raspberry Pi
+
+1. **Install SQLite on Raspberry Pi:**
+
+    ```sh
+    sudo apt update
+    sudo apt install sqlite3
+    ```
+
+2. **Create and Set Up SQLite Database:**
+
+    ```sh
+    sqlite3 /home/albxii/ecs/elderlycaresystemlocaldb.db
+    ```
+
+3. **Create Tables in SQLite Database:**
+
+    ```sql
+    CREATE TABLE patientprofiles (
+        ProfileID INTEGER PRIMARY KEY,
+        UserID INTEGER,
+        FirstName TEXT,
+        LastName TEXT,
+        DOB DATE,
+        Gender TEXT,
+        Address TEXT,
+        EmergencyContact TEXT
+    );
+
+    CREATE TABLE patientmedications (
+        PatientMedicationID INTEGER PRIMARY KEY,
+        ProfileID INTEGER,
+        MedicationName TEXT,
+        Dosage TEXT,
+        StartDate DATE,
+        EndDate DATE,
+        FrequencyPerDay INTEGER
+    );
+
+    CREATE TABLE medicationschedules (
+        ScheduleID INTEGER PRIMARY KEY,
+        PatientMedicationID INTEGER,
+        ScheduledTime TIME
+    );
+
+    CREATE TABLE users (
+        UserID INTEGER PRIMARY KEY,
+        Username TEXT,
+        PasswordHash TEXT,
+        UserRole TEXT
+    );
+
+    CREATE TABLE sensordata (
+        DataHistoryID INTEGER PRIMARY KEY,
+        ProfileID INTEGER,
+        Timestamp DATETIME,
+        SensorType TEXT,
+        Value REAL
+    );
+
+    CREATE TABLE alertlogs (
+        AlertID INTEGER PRIMARY KEY,
+        ProfileID INTEGER,
+        AlertType TEXT,
+        AlertTimestamp DATETIME,
+        Resolved BOOLEAN
+    );
+    ```
+
+4. **Verify the SQLite Database Setup:**
+
+    - List tables to ensure they are created correctly:
+
+    ```sh
+    sqlite3 /home/albxii/ecs/elderlycaresystemlocaldb.db
+    .tables
+    ```
+
 ## Running the Application
 
 1. **Start the backend server:**
@@ -234,6 +314,100 @@ The Elderly Care System is designed to provide caregivers with a dashboard to mo
     python fall_detection_local.py
     ```
 
+## Database Structure
+
+### MySQL Database Structure (Cloud)
+
+- **patientprofiles:**
+    - `address` - VARCHAR(255)
+    - `DOB` - DATE
+    - `EmergencyContact` - VARCHAR(255)
+    - `FirstName` - VARCHAR(255)
+    - `LastName` - VARCHAR(255)
+    - `Gender` - ENUM('Male','Female','Other')
+    - `ProfileID` - INT
+    - `UserId` - INT
+
+- **patientmedications:**
+    - `Dosage` - VARCHAR(255)
+    - `EndDate` - DATE
+    - `FrequencyPerDay` - INT
+    - `MedicationName` - VARCHAR(255)
+    - `PatientMedicationID` - INT
+    - `StartDate` - DATE
+
+- **medicationschedules:**
+    - `PatientMedicationID` - INT
+    - `ScheduledTime` - TIME
+    - `ScheduleID` - INT
+
+- **users:**
+    - `Email` - VARCHAR(255)
+    - `PasswordHash` - VARCHAR(255)
+    - `UserID` - INT
+    - `Username` - VARCHAR(255)
+    - `UserRole` - ENUM('Admin','Caregiver','Patient')
+
+- **sensordatahistory:**
+    - `DataHistoryID` - INT
+    - `ProfileID` - INT
+    - `SensorType` - VARCHAR(255)
+    - `Timestamp` - DATETIME
+    - `Value` - DOUBLE
+
+- **alertlogs:**
+    - `AlertID` - INT
+    - `AlertTimestamp` - DATETIME
+    - `AlertType` - VARCHAR(255)
+    - `ProfileID` - INT
+    - `Resolved` - TINYINT(1)
+
+### SQLite Database Structure (Local)
+
+- **patientprofiles:**
+    - `ProfileID` - INTEGER PRIMARY KEY
+    - `UserID` - INTEGER
+    - `FirstName` - TEXT
+    - `LastName` - TEXT
+    - `DOB` - DATE
+    - `Gender` - TEXT
+    - `Address` - TEXT
+    - `EmergencyContact` - TEXT
+
+- **patientmedications:**
+    - `PatientMedicationID` - INTEGER PRIMARY KEY
+    - `ProfileID` - INTEGER
+    - `MedicationName` - TEXT
+    - `Dosage` - TEXT
+    - `StartDate` - DATE
+    - `EndDate` - DATE
+    - `FrequencyPerDay` - INTEGER
+
+- **medicationschedules:**
+    - `ScheduleID` - INTEGER PRIMARY KEY
+    - `PatientMedicationID` - INTEGER
+    - `ScheduledTime` - TIME
+
+- **users:**
+    - `UserID` - INTEGER PRIMARY KEY
+    - `Username` - TEXT
+    - `PasswordHash` - TEXT
+    - `UserRole` - TEXT
+
+- **sensordata:**
+    - `DataHistoryID` - INTEGER PRIMARY KEY
+    - `ProfileID` - INTEGER
+    - `Timestamp` - DATETIME
+    - `SensorType` - TEXT
+    - `Value` - REAL
+
+- **alertlogs:**
+    - `AlertID` - INTEGER PRIMARY KEY
+    - `ProfileID` - INTEGER
+    - `AlertType` - TEXT
+    - `AlertTimestamp` - DATETIME
+    - `Resolved` - BOOLEAN
+
 ## Contact
 
 For any queries or issues, please contact:
@@ -244,5 +418,5 @@ For any queries or issues, please contact:
 
 ## Demonstration Video
 
-This is a link to a demonstration video of how the system functions.
+This is a link to a demonstration video of how the system functions:
 https://youtu.be/Me-EucbhGCo
