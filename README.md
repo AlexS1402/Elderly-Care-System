@@ -225,7 +225,7 @@ The Elderly Care System is designed to provide caregivers with a dashboard to mo
 2. **Create and Set Up SQLite Database:**
 
     ```sh
-    sqlite3 /home/albxii/ecs/elderlycaresystemlocaldb.db
+    sqlite3 elderlycaresystemlocaldb.db
     ```
 
 3. **Create Tables in SQLite Database:**
@@ -287,7 +287,7 @@ The Elderly Care System is designed to provide caregivers with a dashboard to mo
     - List tables to ensure they are created correctly:
 
     ```sh
-    sqlite3 /home/albxii/ecs/elderlycaresystemlocaldb.db
+    sqlite3 elderlycaresystemlocaldb.db
     .tables
     ```
 
