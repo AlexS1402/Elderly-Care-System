@@ -29,6 +29,9 @@ The Elderly Care System is designed to provide caregivers with a dashboard to mo
 - Python (v3.7 or later)
 - Raspberry Pi 4 Model B
 - Required Python packages (`numpy`, `pandas`, `joblib`, `mysql-connector-python`, `python-dotenv`, `twilio`, `bcrypt`, `smtplib`)
+- Twilio account for sending SMS alerts
+- Email address and password for the SMTP server
+- Mosquitto MQTT Broker for device communication (if not using alternative methods)
 
 ## Setup
 
@@ -179,6 +182,8 @@ The Elderly Care System is designed to provide caregivers with a dashboard to mo
 
 ### MQTT Server Setup
 
+**Note**: The MQTT server is required for the wearable device to communicate with the fall detection algorithm.
+
 1. **Install Mosquitto MQTT Broker on Raspberry Pi:**
 
     ```sh
@@ -225,7 +230,7 @@ The Elderly Care System is designed to provide caregivers with a dashboard to mo
 2. **Create and Set Up SQLite Database:**
 
     ```sh
-    sqlite3 elderlycaresystemlocaldb.db
+    sqlite3 /home/albxii/ecs/elderlycaresystemlocaldb.db
     ```
 
 3. **Create Tables in SQLite Database:**
@@ -287,7 +292,7 @@ The Elderly Care System is designed to provide caregivers with a dashboard to mo
     - List tables to ensure they are created correctly:
 
     ```sh
-    sqlite3 elderlycaresystemlocaldb.db
+    sqlite3 /home/albxii/ecs/elderlycaresystemlocaldb.db
     .tables
     ```
 
