@@ -10,7 +10,7 @@ The Elderly Care System is designed to provide caregivers with a dashboard to mo
 2. [Setup](#setup)
     1. [Frontend Setup](#frontend-setup)
     2. [Backend Setup](#backend-setup)
-    3. [Fall Detection Algorithm Setup](#fall-detection-algorithm-setup)
+    3. [ECSI/Fall Detection Algorithm Setup](#ECSI-fall-detection-algorithm-setup)
     4. [Device Setup](#device-setup)
     5. [MQTT Server Setup](#mqtt-server-setup)
     6. [Local SQL Server Setup on Raspberry Pi](#local-sql-server-setup-on-raspberry-pi)
@@ -108,12 +108,12 @@ The Elderly Care System is designed to provide caregivers with a dashboard to mo
     npm start
     ```
 
-### Fall Detection Algorithm Setup
+### ECSI/Fall Detection Algorithm Setup
 
 1. **Navigate to the fall detection directory:**
 
     ```sh
-    cd ../fall-detection
+    cd ../ecsi
     ```
 
 2. **Install Python dependencies:**
@@ -149,7 +149,7 @@ The Elderly Care System is designed to provide caregivers with a dashboard to mo
 5. **Run the fall detection algorithm:**
 
     ```sh
-    python fall_detection_local.py
+    python ecsi.py
     ```
 
 ### Device Setup
@@ -230,7 +230,7 @@ The Elderly Care System is designed to provide caregivers with a dashboard to mo
 2. **Create and Set Up SQLite Database:**
 
     ```sh
-    sqlite3 /home/albxii/ecs/elderlycaresystemlocaldb.db
+    sqlite3 elderlycaresystemlocaldb.db
     ```
 
 3. **Create Tables in SQLite Database:**
@@ -292,7 +292,7 @@ The Elderly Care System is designed to provide caregivers with a dashboard to mo
     - List tables to ensure they are created correctly:
 
     ```sh
-    sqlite3 /home/albxii/ecs/elderlycaresystemlocaldb.db
+    sqlite3 elderlycaresystemlocaldb.db
     .tables
     ```
 
@@ -315,8 +315,8 @@ The Elderly Care System is designed to provide caregivers with a dashboard to mo
 3. **Run the fall detection algorithm:**
 
     ```sh
-    cd fall-detection
-    python fall_detection_local.py
+    cd ecsi
+    python ecsi.py
     ```
 
 ## Database Structure
