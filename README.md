@@ -10,7 +10,7 @@ The Elderly Care System is designed to provide caregivers with a dashboard to mo
 2. [Setup](#setup)
     1. [Frontend Setup](#frontend-setup)
     2. [Backend Setup](#backend-setup)
-    3. [ECSI/Fall Detection Algorithm Setup](#ECSI-fall-detection-algorithm-setup)
+    3. [ECSI/Fall Detection Algorithm Setup](#fall-detection-algorithm-setup)
     4. [Device Setup](#device-setup)
     5. [MQTT Server Setup](#mqtt-server-setup)
     6. [Local SQL Server Setup on Raspberry Pi](#local-sql-server-setup-on-raspberry-pi)
